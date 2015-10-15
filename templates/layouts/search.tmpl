@@ -1,0 +1,129 @@
+{{ define "title"}}Search{{ end }}
+
+{{ define "breadcrumbs" }}
+    <li><a href="/{{ .db }}">{{ .db | title }}</a></li>
+    <li><a href="/{{ .db }}/{{ .storeName }}">{{ .storeName | title }}</a></li>
+    <li class="active">Search</li>
+{{ end }}
+
+{{ define "nav-right" }}
+    {{ if .savedSearch }}
+        <li class="dropdown">
+            <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Saved Searches<span class="caret"></span></a>
+            <ul class="dropdown-menu">
+                {{ $db := .db}}
+                {{ $storeName := .storeName }}
+                {{ range $search := .savedSearch }}
+                    <li><a href="/{{ $db }}/{{ $storeName }}/search?query={{ $search }}">{{ $search | title }}</a></li>
+                {{ end }}
+            </ul>
+        </li>
+    {{ end }}
+{{ end }}
+
+{{ define "left-sidebar" }}
+    {{ template "all-store-sidebar" . }}
+{{ end}}
+
+{{ define "content" }}
+    <div class="col-lg-offset-2 col-lg-6">
+        <br>
+        <div id="results"></div>
+    </div>
+{{ end }}
+
+{{ define "right-sidebar" }}
+    <div class="col-lg-offset-8 col-lg-4 sidebar">
+        <p class="text-center">
+            Must use doc as query object
+        </p>
+        <pre id="editor" style="height:420px;">{{ if .query }}{{ .query }}{{ else }}return doc;{{ end }}</pre>
+        <div class="form-group">
+            <button id="search" class="btn btn-success btn-block">Search</button>
+        </div>
+        <form id="save-search-form" action="/{{ .db }}/{{ .storeName }}/search/save" method="post">
+            <label>Name</label>
+            <div class="input-group">
+                <input id="name" name="name" type="text" class="form-control" placeholder="Name">
+                <input id="search" name="search" type="hidden">
+                <span class="input-group-btn">
+                    <button id="save-search" class="btn btn-default" type="button">Save Search</button>
+                </span>
+            </div>
+        </form>
+    </div>
+{{ end }}
+
+{{ define "scripts" }}
+    <script src="/static/js/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script type="text/javascript">
+        var store = JSON.parse({{ .store | pretty }})
+        var editor = ace.edit("editor");
+        editor.session.setMode("ace/mode/javascript");
+        editor.renderer.setShowGutter(true);
+        editor.setHighlightActiveLine(true);
+        editor.setReadOnly(false);
+        editor.setTheme("ace/theme/terminal");
+        editor.setDisplayIndentGuides(true);
+        editor.setFontSize(15);
+        editor.getSession().on("changeAnnotation", function(){
+            var annot = editor.getSession().getAnnotations();
+            if (annot.length > 0) {
+                $('button#search').attr('disabled', 'disabled');
+                $('button#save-search').attr('disabled', 'disabled');
+            } else {
+                $('button#search').removeAttr('disabled');
+                $('button#save-search').removeAttr('disabled');
+            }
+        });
+
+        $(document).ready(function() {
+
+            {{ if .query }}
+                $('#results').html('');
+                var filter = new Function('doc', editor.getValue());
+                genResults(store.filter(filter))
+            {{ end }}
+
+            $('#save-search').click(function(e) {
+                e.preventDefault();
+                $('input#search').val(editor.getValue());
+                $('form#save-search-form').submit();
+            })
+
+            $('#search').click(function() {
+                $('#results').html('');
+                var filter = new Function('doc', editor.getValue());
+                genResults(store.filter(filter))
+            });
+
+            function genResults(results) {
+                for (i = 0; i < results.length; i++) {
+                    div = $('<div></div>');
+                    editA = $('<a>Edit</a>');
+                    editA.attr('href', '/{{ .db }}/{{ .storeName }}/' + results[i].Id);
+                    deleteA = $('<a href="#" data-message="Are you sure you would like to delete this record?" data-delete="/{{ .db }}/{{ .storeName }}/' + results[i].Id + '/del" class="delete-button text-danger">Delete</a>');
+                    pre = $('<pre></pre>');
+                    pre.attr('id', 'result-' + i);
+                    pre.css('height', '100px');
+                    pre.text(JSON.stringify(results[i], null, 4))
+                    div.append(editA);
+                    div.append('&nbsp;&nbsp;&nbsp;&nbsp;');
+                    div.append(deleteA);
+                    div.append(pre);
+                    $('#results').append(div);
+                    var result = ace.edit('result-' + i);
+                    result.session.setMode("ace/mode/json");
+                    result.renderer.setShowGutter(false);
+                    result.setHighlightActiveLine(false);
+                    result.setReadOnly(true);
+                    result.setTheme("ace/theme/vibrant_ink");
+                    result.setDisplayIndentGuides(false);
+                }
+                registerDelete();
+            }
+
+        });
+    </script>
+
+{{ end }}

@@ -1,0 +1,7 @@
+{{ define "all-store-sidebar" }}
+    {{ $db := .db }}
+    {{ $storeName := .storeName }}
+    {{ range $store := .stores }}
+        <li {{ if $storeName }}{{ if eq $store $storeName }}class="active"{{ end }}{{ end }}><a href="/{{ $db }}/{{ $store }}">{{ title $store }}</a></li>
+    {{ end }}
+{{ end }}

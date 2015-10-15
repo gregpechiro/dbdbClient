@@ -1,0 +1,67 @@
+{{ define "title"}}DBUI{{ end }}
+
+{{ define "head" }}
+    <script src="/static/js/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
+{{ end }}
+
+{{ define "breadcrumbs" }}
+    <li><a href="/{{ .db }}">{{ .db | title }}</a></li>
+    <li class="active">{{ .storeName | title }}</li>
+{{ end }}
+
+{{ define "nav-right" }}
+    {{ if .savedSearch }}
+        <li class="dropdown">
+            <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Saved Searches<span class="caret"></span></a>
+            <ul class="dropdown-menu">
+                {{ $db := .db}}
+                {{ $storeName := .storeName }}
+                {{ range $search := .savedSearch }}
+                    <li><a href="/{{ $db }}/{{ $storeName }}/search?query={{ $search }}">{{ $search | title }}</a></li>
+                {{ end }}
+            </ul>
+        </li>
+    {{ end }}
+    <li><a href="/{{ .db }}/{{ .storeName }}/new">New</a></li>
+{{ end }}
+
+{{ define "left-sidebar" }}
+    {{ template "all-store-sidebar" . }}
+{{ end }}
+
+{{ define "content" }}
+    <br>
+    <div class="col-lg-offset-2 col-lg-7">
+        {{ if .store }}
+            {{ $db := .db }}
+            {{ $storeName := .storeName }}
+            {{ range $doc := .store }}
+                <a href="/{{ $db }}/{{ $storeName }}/{{ $doc.Id }}">Edit</a>
+                &nbsp;&nbsp;&nbsp;&nbsp;
+                <a href="#" data-message="Are you sure you would like to delete this record?" data-delete="/{{ $db }}/{{ $storeName }}/{{ $doc.Id }}/del" class="delete-button text-danger">Delete</a>
+                <pre id="editor{{ $doc.Id }}" style="height:100px;">{{ index $doc | pretty }}</pre>
+                <script type="text/javascript">
+                    var editor = ace.edit("editor{{ $doc.Id }}");
+                    editor.session.setMode("ace/mode/json");
+                    editor.renderer.setShowGutter(false);
+                    editor.setHighlightActiveLine(false);
+                    editor.setReadOnly(true);
+                    editor.setTheme("ace/theme/vibrant_ink");
+                    editor.setDisplayIndentGuides(false);
+                </script>
+            {{ end }}
+        {{ else }}
+            No Data
+        {{ end }}
+    </div>
+{{ end }}
+
+{{ define "right-sidebar" }}
+    {{ template "search-sidebar" . }}
+{{ end }}
+
+{{ define "scripts" }}
+    <script type="text/javascript">
+        var dat = JSON.parse({{ .store | pretty }});
+    </script>
+{{ end }}

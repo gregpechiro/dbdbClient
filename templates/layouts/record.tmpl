@@ -1,0 +1,56 @@
+{{ define "title"}}DBUI{{ end }}
+
+{{ define "breadcrumbs" }}
+    <li><a href="/{{ .db }}">{{ .db | title }}</a></li>
+    <li><a href="/{{ .db }}/{{ .storeName }}">{{ .storeName | title }}</a></li>
+    <li class="active">{{if .record }}{{ .record.Id }}{{ else }}New{{ end }}</li>
+{{ end }}
+
+{{ define "left-sidebar" }}
+    {{ template "all-store-sidebar" . }}
+{{ end }}
+
+{{ define "content" }}
+    <div class="col-lg-offset-2 col-lg-10">
+        <br>
+
+        <pre id="editor" style="height:525px;">{{ if .record }}{{ .record | pretty }}{{ else }}{
+
+}{{ end }}</pre>
+        <form id="save-form" action="/{{ .db }}/{{ .storeName }}/{{ if .record }}{{ .record.Id }}{{ else }}add{{ end }}" method="post">
+            <input id="record" type="hidden" name="record">
+            <div class="form-group">
+                <button id="save" class="btn btn-success">Save</button>
+            </div>
+        </form>
+    </div>
+{{ end }}
+
+{{ define "scripts" }}
+    <script src="/static/js/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script type="text/javascript">
+        var editor = ace.edit("editor");
+        editor.session.setMode("ace/mode/json");
+        editor.renderer.setShowGutter(true);
+        editor.setHighlightActiveLine(true);
+        editor.setReadOnly(false);
+        editor.setTheme("ace/theme/vibrant_ink");
+        editor.setDisplayIndentGuides(true);
+        editor.getSession().on("changeAnnotation", function(){
+            var annot = editor.getSession().getAnnotations();
+            if (annot.length > 0) {
+                $('button#save').attr('disabled', 'disabled');
+            } else {
+                $('button#save').removeAttr('disabled');
+            }
+        });
+        $(document).ready(function() {
+            $('button#save').click(function(e) {
+                e.preventDefault();
+                $('input#record').val(editor.getValue());
+                $('form#save-form').submit();
+            });
+        });
+    </script>
+
+{{ end }}

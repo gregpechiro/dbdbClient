@@ -1,0 +1,5 @@
+{{ define "all-db-sidebar" }}
+    {{ range $db := .dbs }}
+        <li class="active"><a href="/{{ $db }}">{{ title $db }}</a></li>
+    {{ end }}
+{{ end }}
