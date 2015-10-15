@@ -2,6 +2,13 @@
     {{ $db := .db }}
     {{ $storeName := .storeName }}
     {{ range $store := .stores }}
-        <li {{ if $storeName }}{{ if eq $store $storeName }}class="active"{{ end }}{{ end }}><a href="/{{ $db }}/{{ $store }}">{{ title $store }}</a></li>
+        <li {{ if $storeName }}{{ if eq $store.Name $storeName }}class="active"{{ end }}{{ end }}>
+            <a href="/{{ $db }}/{{ $store.Name }}" class="clearfix">
+                <span>
+                    {{ title $store.Name }}
+                </span>
+                <span class="pull-right badge">{{ $store.DocCount }}</span>
+            </a>
+        </li>
     {{ end }}
 {{ end }}

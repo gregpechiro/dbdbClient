@@ -185,13 +185,32 @@ func GetSavedSearches(searchStore string) []string {
 	return OrderKeys(savedSearch)
 }
 
-func OrderStores(stores map[string]*map[string]interface{}) []string {
-	var ss []string
-	for k := range stores {
-		ss = append(ss, k)
+type StoreStat struct {
+	Name     string
+	DocCount uint64
+}
+
+type StoreStatSorted []StoreStat
+
+func (sss StoreStatSorted) Len() int {
+	return len(sss)
+}
+
+func (sss StoreStatSorted) Less(i, j int) bool {
+	return sss[i].Name < sss[j].Name
+}
+
+func (sss StoreStatSorted) Swap(i, j int) {
+	sss[i], sss[j] = sss[j], sss[i]
+}
+
+func OrderStores(stores map[string]*map[string]interface{}) []StoreStat {
+	var sss StoreStatSorted
+	for k, v := range stores {
+		sss = append(sss, StoreStat{Name: k, DocCount: uint64(len(*v))})
 	}
-	sort.Strings(ss)
-	return ss
+	sort.Sort(sss)
+	return sss
 }
 
 func OrderStore(store map[string]interface{}) []map[string]interface{} {

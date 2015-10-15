@@ -54,3 +54,7 @@ body {
     font-size: 18px;
     line-height: 20px;
 }
+
+.nav .breadcrumb a {
+    color: #E7370D;
+}

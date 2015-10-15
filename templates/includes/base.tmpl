@@ -14,7 +14,6 @@
 		<![endif]-->
 		<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
 		<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
-		<link rel="stylesheet" href="/static/css/data-table-bootstrap.css"/>
 		<link rel="stylesheet" href="/static/css/main.css">
 		<script src="/static/js/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
 		{{ template "head" . }}
@@ -72,38 +71,7 @@
 				</div>
 			</div>
 		</nav>
-<!--
-		<div class="container-fluid">
-			<div class="row">
-				<br>
-				<div class="col-lg-offset-3 col-lg-5">
-					<div id="deleteAlert" class="alert alert-danger clearfix">
-						<form id="deleteForm" action="" method="post" class="col-lg-4">
-							<button id="delete" class="btn btn-danger btn-sm">Yes</button>
-							<a id="deleteCancel" class="btn btn-default btn-sm">No</a>
-						</form>
-						<span id="message"></span>
-					</div>
-					{{ if .alert }}
-					<div class="alert alert-info alert-dismissable">
-						<button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
-						{{ .alert }}
-					</div>
-					{{ else if .alertError }}
-					<div class="alert alert-danger alert-dismissable">
-						<button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
-						{{ .alertError }}
-					</div>
-					{{ else if .alertSuccess }}
-					<div class="alert alert-success alert-dismissable">
-						<button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
-						{{ .alertSuccess }}
-					</div>
-					{{ end }}
-				</div>
-			</div>
-		</div>
- -->
+
 		<div class="container-fluid">
 	        <div class="row">
 
@@ -122,9 +90,6 @@
 		<div>
 			<script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
 			<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
-			<script src="//cdnjs.cloudflare.com/ajax/libs/datatables/1.10.7/js/jquery.dataTables.min.js"></script>
-			<script src="//cdnjs.cloudflare.com/ajax/libs/datatables/1.10.7/js/jquery.dataTables.min.js"></script>
-			<script src="/static/js/data-table-bootstrap.js"></script>
 			<script src="/static/js/delete.js"></script>
 			{{ template "scripts" . }}
 		</div>
