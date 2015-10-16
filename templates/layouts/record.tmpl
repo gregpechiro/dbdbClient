@@ -1,9 +1,9 @@
 {{ define "title"}}DBUI{{ end }}
 
 {{ define "breadcrumbs" }}
-    <li><a href="/{{ .db }}">{{ .db | title }}</a></li>
-    <li><a href="/{{ .db }}/{{ .storeName }}">{{ .storeName | title }}</a></li>
-    <li class="active">{{if .record }}{{ .record.Id }}{{ else }}New{{ end }}</li>
+    <li><a href="/">{{ .db | title }}</a></li>
+    <li><a href="/{{ .storeName }}">{{ .storeName | title }}</a></li>
+    <li class="active">{{ if .record }}{{ .record.Id }}{{ else }}New{{ end }}</li>
 {{ end }}
 
 {{ define "left-sidebar" }}
@@ -14,10 +14,10 @@
     <div class="col-lg-offset-2 col-lg-10">
         <br>
 
-        <pre id="editor" style="height:525px;">{{ if .record }}{{ .record | pretty }}{{ else }}{
+        <pre id="editor" style="height:525px;">{{ if .record }}{{ .record.Data | pretty }}{{ else }}{
 
 }{{ end }}</pre>
-        <form id="save-form" action="/{{ .db }}/{{ .storeName }}/{{ if .record }}{{ .record.Id }}{{ else }}add{{ end }}" method="post">
+        <form id="save-form" action="/{{ .storeName }}/{{ if .record }}{{ .record.Id }}{{ else }}add{{ end }}" method="post">
             <input id="record" type="hidden" name="record">
             <div class="form-group">
                 <button id="save" class="btn btn-success">Save</button>

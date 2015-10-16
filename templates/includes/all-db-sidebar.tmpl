@@ -1,5 +1,8 @@
 {{ define "all-db-sidebar" }}
+    <p class="text-center">
+        Click to connect
+    </p>
     {{ range $db := .dbs }}
-        <li class="active"><a href="/{{ $db }}">{{ title $db }}</a></li>
+        <li><a href="/connect/{{ $db }}">{{ title $db }}</a></li>
     {{ end }}
 {{ end }}

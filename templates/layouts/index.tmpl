@@ -5,7 +5,46 @@
 {{ end }}
 
 {{ define "content" }}
-    <div class="col-lg-offset-2 col-lg-10">
-        No Data
+    <div class="col-lg-offset-2 col-lg-7">
+        <br>
+        <legend>Manage Connections</legend>
+        {{ $conns := .conns }}
+        {{ range $db := .dbs }}
+            <form class="form-inline form-group" action="/connection/{{ $db }}" method="post">
+                <div class="form-group">
+                    <input class="form-control" type="text" name="name" value="{{ $db }}">
+                </div>
+                <div class="form-group">
+                    <input class="form-control" type="text" name="address" value="{{ index $conns $db }}">
+                </div>
+                <input type="hidden" name="oldName" value="{{ $db }}">
+                <button class="btn btn-success">Update</button>
+                <a href="#" data-message="Are you sure you would like to delete this connection?" data-delete="/connection/{{ $db }}/del" class="delete-button btn btn-danger">Delete</a>
+            </form>
+        {{ end }}
     </div>
+{{ end }}
+
+{{ define "right-sidebar" }}
+    <div class="col-lg-offset-9 col-lg-3 sidebar text-center">
+        Add Connection
+        <form class="text-left" action="/connection" method="post">
+            <div class="form-group">
+                <label>Name</label>
+                <input class="form-control" type="text" name="name" placeholder="Name">
+            </div>
+            <div class="form-group">
+                <label>Address</label>
+                <input class="form-control" type="text" name="address" placeholder="Address">
+            </div>
+            <button class="btn btn-primary btn-block">Add</button>
+        </form>
+    </div>
+{{ end }}
+
+{{ define "scripts" }}
+    <script>
+        var order = {{ .dbs }}
+        var conns = JSON.parse({{ .conns | pretty }})
+    </script>
 {{ end }}

@@ -1,13 +1,12 @@
 {{ define "all-store-sidebar" }}
-    {{ $db := .db }}
     {{ $storeName := .storeName }}
     {{ range $store := .stores }}
         <li {{ if $storeName }}{{ if eq $store.Name $storeName }}class="active"{{ end }}{{ end }}>
-            <a href="/{{ $db }}/{{ $store.Name }}" class="clearfix">
+            <a href="/{{ $store.Name }}" class="clearfix">
                 <span>
                     {{ title $store.Name }}
                 </span>
-                <span class="pull-right badge">{{ $store.DocCount }}</span>
+                <span class="pull-right badge">{{ $store.Docs }}</span>
             </a>
         </li>
     {{ end }}

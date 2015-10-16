@@ -5,7 +5,7 @@
 {{ end }}
 
 {{ define "breadcrumbs" }}
-    <li><a href="/{{ .db }}">{{ .db | title }}</a></li>
+    <li><a href="/">{{ .db | title }}</a></li>
     <li class="active">{{ .storeName | title }}</li>
 {{ end }}
 
@@ -17,12 +17,17 @@
                 {{ $db := .db}}
                 {{ $storeName := .storeName }}
                 {{ range $search := .savedSearch }}
-                    <li><a href="/{{ $db }}/{{ $storeName }}/search?query={{ $search }}">{{ $search | title }}</a></li>
+                    <li><a href="/{{ $storeName }}/search?query={{ $search }}">{{ $search | title }}</a></li>
                 {{ end }}
             </ul>
         </li>
     {{ end }}
-    <li><a href="/{{ .db }}/{{ .storeName }}/new">New</a></li>
+{{ end }}
+
+{{ define "nav-right-dd" }}
+    <li><a href="/{{ .storeName }}/new">New Record</a></li>
+    <li><a href="/{{ .storeName }}/import">Import Data</a></li>
+    <li><a href="#" data-message="Are you sure you would like to delete this store?" data-delete="/{{ .storeName }}" class="delete-button text-danger">Delete Store</a></li>
 {{ end }}
 
 {{ define "left-sidebar" }}
@@ -32,24 +37,32 @@
 {{ define "content" }}
     <br>
     <div class="col-lg-offset-2 col-lg-7">
+        <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
         {{ if .store }}
             {{ $db := .db }}
             {{ $storeName := .storeName }}
             {{ range $doc := .store }}
-                <a href="/{{ $db }}/{{ $storeName }}/{{ $doc.Id }}">Edit</a>
-                &nbsp;&nbsp;&nbsp;&nbsp;
-                <a href="#" data-message="Are you sure you would like to delete this record?" data-delete="/{{ $db }}/{{ $storeName }}/{{ $doc.Id }}/del" class="delete-button text-danger">Delete</a>
-                <pre id="editor{{ $doc.Id }}" style="height:100px;">{{ index $doc | pretty }}</pre>
-                <script type="text/javascript">
-                    var editor = ace.edit("editor{{ $doc.Id }}");
-                    editor.session.setMode("ace/mode/json");
-                    editor.renderer.setShowGutter(false);
-                    editor.setHighlightActiveLine(false);
-                    editor.setReadOnly(true);
-                    editor.setTheme("ace/theme/vibrant_ink");
-                    editor.setDisplayIndentGuides(false);
-                </script>
+                <div class="panel panel-default">
+                    <div class="panel-heading clearfix" role="tab" id="headingOne">
+                        <h4 class="panel-title">
+                            <a role="button" class="btn btn-success btn-xs" style="color: #fff;" data-toggle="collapse" data-parent="#accordion" href="#collapse{{ $doc.Id }}" aria-expanded="true" aria-controls="collapse{{ $doc.Id }}">
+                                ID: {{ $doc.Id }}
+                            </a>
+                            <span class="pull-right">
+                                <a href="/{{ $storeName }}/{{ $doc.Id }}">Edit</a>
+                                &nbsp;&nbsp;&nbsp;&nbsp;
+                                <a href="#" data-message="Are you sure you would like to delete this record?" data-delete="/{{ $storeName }}/{{ $doc.Id }}/del" class="delete-button text-danger">Delete</a>
+                            </span>
+                        </h4>
+                    </div>
+                    <div id="collapse{{ $doc.Id }}" class="panel-collapse collapse" role="tabpanel" aria-labelledby="heading{{ $doc.Id }}">
+                        <div class="panel-body">
+                            <pre id="editor{{ $doc.Id }}" style="height:400px;">{{ index $doc.Data | pretty }}</pre>
+                        </div>
+                    </div>
+                </div>
             {{ end }}
+        </div>
         {{ else }}
             No Data
         {{ end }}

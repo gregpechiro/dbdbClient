@@ -1,1 +1,1 @@
-{"search":{"user":{"Active Drivers":"return doc.Role === 'driver' \u0026\u0026 doc.Active;","Not Active":"return !doc.Active;","developer":"return doc.Role === 'developer';"}}}
+{"db":{"connections":{"localhost 9997":"127.0.0.1:9997","localhost 9998":"127.0.0.1:9998","localhost 9999":"127.0.0.1:9999"}},"search":{"order":{"Age greater than 5":"return doc.data.age \u003e 5;"},"user":{"Active Drivers":"return doc.Role === 'driver' \u0026\u0026 doc.Active;","Not Active":"return !doc.Active;","developer":"return doc.Role === 'developer';"}}}

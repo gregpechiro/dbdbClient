@@ -11,13 +11,13 @@
         </div>
         {{ if .query }}
             <div class="form-group">
-                <a href="/{{ .db }}/{{ .storeName }}" class="btn btn-block btn-primary">View All</a>
+                <a href="/{{ .storeName }}" class="btn btn-block btn-primary">View All</a>
             </div>
         {{ end }}
         <div class="form-group">
-            <a href="/{{ .db }}/{{ .storeName }}/search" class="btn btn-block btn-default">Complex Search</a>
+            <a href="/{{ .storeName }}/search" class="btn btn-block btn-default">Complex Search</a>
         </div>
-        <form id="search-form" class="hide" action="/{{ .db }}/{{ .storeName }}/search" method="post">
+        <form id="search-form" class="hide" action="/{{ .storeName }}/search" method="post">
             <input id="query" type="hidden" name="query">
         </form>
     </div>

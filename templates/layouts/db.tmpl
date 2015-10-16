@@ -4,9 +4,30 @@
     <li class="active">{{ .db | title }}</li>
 {{ end }}
 
-{{ define "nav-right" }}
-    <li>
-        <form class="navbar-form" role="search">
+{{ define "left-sidebar" }}
+    {{ template "all-store-sidebar" . }}
+{{ end }}
+
+{{ define "content" }}
+    <div class="col-lg-offset-2 col-lg-7">
+        <br>
+        No Data
+    </div>
+{{ end }}
+
+{{ define "right-sidebar" }}
+    <div class="col-lg-offset-9 col-lg-3 sidebar">
+        <label>Add Store</label>
+        <form action="/new" method="post">
+            <div class="input-group form-group">
+                <input type="text" class="form-control" name="name" placeholder="Name">
+                <span class="input-group-btn">
+                    <button class="btn btn-primary">Add</button>
+                </span>
+            </div>
+        </form>
+        <label>String Search</label>
+        <form role="search">
             <div class="input-group">
                 <input type="search" class="form-control" placeholder="Search">
                 <span class="input-group-btn">
@@ -14,17 +35,5 @@
                 </span>
             </div>
         </form>
-    </li>
-    <li><a href="/{{ .db }}/new">New</a></li>
-{{ end }}
-
-{{ define "left-sidebar" }}
-    {{ template "all-store-sidebar" . }}
-{{ end }}
-
-{{ define "content" }}
-    <div class="col-lg-offset-2 col-lg-10">
-        <br>
-        No Data
     </div>
 {{ end }}
