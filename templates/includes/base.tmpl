@@ -41,17 +41,17 @@
 				{{ if .alert }}
 					<span id="msg" class="navbar-center text-info">
 						{{ .alert }}
-						<button class="btn-xs btn-info" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+						<button style="z-index: 100" class="btn-xs btn-info" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
 					</span>
 				{{ else if .alertError }}
 					<span id="msg" class="navbar-center text-danger">
 						{{ .alertError }}
-						<button class="btn-xs btn-danger" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+						<button style="z-index: 100" class="btn-xs btn-danger" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
 					</span>
 				{{ else if .alertSuccess }}
 					<span id="msg" class="navbar-center text-success">
 						{{ .alertSuccess }}
-						<button class="btn-xs btn-success" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+						<button style="z-index: 100" class="btn-xs btn-success" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
 					</span>
 				{{ end }}
 
@@ -66,6 +66,11 @@
 						<button id="delete" class="btn btn-danger btn-xs">Yes</button>
 						<a id="deleteCancel" class="btn btn-default btn-xs">No</a>
 					</form>
+				</span>
+
+				<span id="JSmsg" class="navbar-center text-primary hide">
+					<p id="msg">
+					</p>
 				</span>
 
 				<div class="collapse navbar-collapse" id="bs-navbar-collapse-1">

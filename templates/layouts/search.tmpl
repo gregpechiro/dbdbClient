@@ -100,24 +100,6 @@
             function genResults(results) {
                 group = $('<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true"></div>');
                 for (i = 0; i < results.length; i++) {
-                    //div = $('<div></div>');
-                    //divRow = $('<div class="row"></div>')
-                    //divCol = $('<div class="col-lg-12">ID: ' + results[i].id + '</div>')
-                    //span = $('<span class="pull-right"></span>')
-                    //editA = $('<a>Edit</a>');
-                    //editA.attr('href', '/{{ .storeName }}/' + results[i].id);
-                    //deleteA = $('<a href="#" data-message="Are you sure you would like to delete this record?" data-delete="/{{ .storeName }}/' + results[i].id + '/del" class="delete-button text-danger">Delete</a>');
-                    //span.append(editA);
-                    //span.append('&nbsp;&nbsp;&nbsp;&nbsp;');
-                    //span.append(deleteA);
-                    //divCol.append(span)
-                    //divRow.append(divCol)
-                    //div.append(divRow)
-                    //pre = $('<pre></pre>');
-                    //pre.attr('id', 'result-' + i);
-                    //pre.css('height', '100px');
-                    //pre.text(JSON.stringify(results[i].data, null, 4))
-                    //div.append(pre);
                     doc = $('<div class="panel panel-default">' +
                         '<div class="panel-heading clearfix" role="tab" id="headingOne">' +
                             '<h4 class="panel-title">' +
@@ -138,21 +120,10 @@
                         '</div>' +
                     '</div>')
                     group.append(doc)
-
-
-
-                    /*var result = ace.edit('result-' + i);
-                    result.session.setMode("ace/mode/json");
-                    result.renderer.setShowGutter(false);
-                    result.setHighlightActiveLine(false);
-                    result.setReadOnly(true);
-                    result.setTheme("ace/theme/vibrant_ink");
-                    result.setDisplayIndentGuides(false);*/
                 }
                 $('#results').append(group);
                 registerDelete();
             }
-
         });
     </script>
 

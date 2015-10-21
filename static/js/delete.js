@@ -1,7 +1,7 @@
 $(document).ready(function() {
 
 	$('.delete-button').click(function() {
-		$('#msg').remove();
+		$('.navbar-center').addClass('hide');
     	$('form#deleteForm').attr('action', $(this).attr('data-delete'));
     	$('label#message').html($(this).attr('data-message'));
     	$('span#delete-msg').removeClass('hide');

@@ -6,6 +6,10 @@
     <li class="active">{{ if .record }}{{ .record.Id }}{{ else }}New{{ end }}</li>
 {{ end }}
 
+{{ define "nav-right-dd" }}
+    <li><a href="#" id="save">Save</a></li>
+{{ end }}
+
 {{ define "left-sidebar" }}
     {{ template "all-store-sidebar" . }}
 {{ end }}
@@ -15,13 +19,10 @@
         <br>
 
         <pre id="editor" style="height:525px;">{{ if .record }}{{ .record.Data | pretty }}{{ else }}{
-
+    ""
 }{{ end }}</pre>
         <form id="save-form" action="/{{ .storeName }}/{{ if .record }}{{ .record.Id }}{{ else }}add{{ end }}" method="post">
             <input id="record" type="hidden" name="record">
-            <div class="form-group">
-                <button id="save" class="btn btn-success">Save</button>
-            </div>
         </form>
     </div>
 {{ end }}
@@ -45,7 +46,7 @@
             }
         });
         $(document).ready(function() {
-            $('button#save').click(function(e) {
+            $('#save').click(function(e) {
                 e.preventDefault();
                 $('input#record').val(editor.getValue());
                 $('form#save-form').submit();

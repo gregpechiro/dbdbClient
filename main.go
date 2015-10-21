@@ -30,7 +30,7 @@ func main() {
 	// db managment
 	mux.Get("/", Root)
 	mux.Post("/connection", AddConnection)
-	mux.Post("/connection/:db", SaveConnection)
+	mux.Post("/connection/save", SaveConnection)
 	mux.Post("/connection/:db/del", DelConnection)
 
 	mux.Get("/connect/:db", Connect)
@@ -67,8 +67,12 @@ func Root(w http.ResponseWriter, r *http.Request, c *web.Context) {
 		ts.Render(w, "index.tmpl", tmpl.Model{
 			msgk:    msgv,
 			"dbs":   GetSavedDBs(),
-			"conns": config.Get("db", "connections"),
+			"conns": config.GetStore("connections"),
 		})
+		return
+	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
 	ts.Render(w, "db.tmpl", tmpl.Model{
@@ -81,56 +85,54 @@ func Root(w http.ResponseWriter, r *http.Request, c *web.Context) {
 
 // POST save new db connection
 func AddConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	var savedConns map[string]string
-	config.GetAs("db", "connections", &savedConns)
-	if savedConns == nil {
-		savedConns = make(map[string]string)
+	var connection map[string]string
+	config.GetAs("connections", r.FormValue("name"), &connection)
+	if connection == nil {
+		println(3)
+		connection = make(map[string]string)
 	}
-	savedConns[r.FormValue("name")] = r.FormValue("address")
-	config.Set("db", "connections", savedConns)
+	connection["address"] = r.FormValue("address")
+	connection["token"] = r.FormValue("token")
+	config.Set("connections", r.FormValue("name"), connection)
 	c.SetFlash("alertSuccess", "Successfully added connection")
 	http.Redirect(w, r, "/", 303)
 	return
 }
 
 func SaveConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	var savedConns map[string]string
-	config.GetAs("db", "connections", &savedConns)
-	if savedConns == nil {
-		savedConns = make(map[string]string)
+	var connection map[string]string
+	config.GetAs("connections", r.FormValue("name"), &connection)
+	if connection == nil {
+		connection = make(map[string]string)
 	}
-	savedConns[r.FormValue("name")] = r.FormValue("address")
+	connection["address"] = r.FormValue("address")
+	connection["token"] = r.FormValue("token")
 	if r.FormValue("name") != r.FormValue("oldName") {
-		delete(savedConns, r.FormValue("oldName"))
+		config.Del("connections", r.FormValue("oldName"))
 	}
-	config.Set("db", "connections", savedConns)
+	config.Set("connections", r.FormValue("name"), connection)
 	c.SetFlash("alertSuccess", "Successfully updated connection")
 	http.Redirect(w, r, "/", 303)
 	return
 }
 
 func DelConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	var savedConns map[string]string
-	config.GetAs("db", "connections", &savedConns)
-	if savedConns == nil {
-		savedConns = make(map[string]string)
-	}
-	delete(savedConns, c.GetPathVar("db"))
-	config.Set("db", "connections", savedConns)
+	config.Del("connections", c.GetPathVar("db"))
 	c.SetFlash("alertSuccess", "Successfully deleted connection")
 	http.Redirect(w, r, "/", 303)
 	return
 }
 
 func Connect(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	var addrs map[string]string
-	config.GetAs("db", "connections", &addrs)
-	if addr, ok := addrs[c.GetPathVar("db")]; ok && addr != "" {
-		if err := rpc.Connect(addr); err == nil {
-			c.SetFlash("alertSuccess", "Successfully connected to database")
-			c.Set("db", c.GetPathVar("db"))
-			http.Redirect(w, r, "/", 303)
-			return
+	var connection map[string]string
+	if config.GetAs("connections", c.GetPathVar("db"), &connection) {
+		if address, ok := connection["address"]; ok && address != "" {
+			if err := rpc.Connect(address, connection["token"]); err == nil {
+				c.SetFlash("alertSuccess", "Successfully connected to database")
+				c.Set("db", c.GetPathVar("db"))
+				http.Redirect(w, r, "/", 303)
+				return
+			}
 		}
 	}
 	rpc.State = false
@@ -141,7 +143,7 @@ func Connect(w http.ResponseWriter, r *http.Request, c *web.Context) {
 
 func Disconnect(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	rpc.Disconnect()
-	c.SetFlash("alertSuccess", "Dissconnected")
+	c.SetFlash("alertSuccess", "Disconnected")
 	http.Redirect(w, r, "/", 303)
 	return
 }
@@ -192,11 +194,12 @@ func Store(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	}
 	ts.Render(w, "store.tmpl", tmpl.Model{
 		msgk:          msgv,
-		"savedSearch": GetSavedSearches(c.GetPathVar("store")),
+		"savedSearch": GetSavedSearches(c.Get("db").(string), c.GetPathVar("store")),
 		"db":          c.Get("db"),
 		"stores":      rpc.GetAllStoreStats(),
 		"store":       rpc.GetAll(c.GetPathVar("store")),
 		"storeName":   c.GetPathVar("store"),
+		"query":       GetSavedSearch(c.Get("db").(string), c.GetPathVar("store"), r.FormValue("query")),
 	})
 	return
 }
@@ -233,7 +236,7 @@ func Search(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	config.GetAs("search", c.GetPathVar("store"), &query)
 	ts.Render(w, "search.tmpl", tmpl.Model{
 		msgk:          msgv,
-		"savedSearch": GetSavedSearches(c.GetPathVar("store")),
+		"savedSearch": GetSavedSearches(c.Get("db").(string), c.GetPathVar("store")),
 		"query":       query[r.FormValue("query")],
 		"db":          c.Get("db"),
 		"stores":      rpc.GetAllStoreStats(),
@@ -279,15 +282,19 @@ func SaveSearch(w http.ResponseWriter, r *http.Request, c *web.Context) {
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
 	}
-	var savedSearch map[string]string
-	config.GetAs("search", c.GetPathVar("store"), &savedSearch)
+	var savedSearch map[string]map[string]string
+
+	config.GetAs("search", c.Get("db").(string), &savedSearch)
 	if savedSearch == nil {
-		savedSearch = make(map[string]string)
+		savedSearch = make(map[string]map[string]string)
 	}
-	savedSearch[r.FormValue("name")] = r.FormValue("search")
-	config.Set("search", c.GetPathVar("store"), savedSearch)
+	if savedSearch[c.GetPathVar("store")] == nil {
+		savedSearch[c.GetPathVar("store")] = make(map[string]string)
+	}
+	savedSearch[c.GetPathVar("store")][r.FormValue("name")] = r.FormValue("search")
+	config.Set("search", c.Get("db").(string), savedSearch)
 	c.SetFlash("alertSuccess", "Successfully saved search")
-	http.Redirect(w, r, fmt.Sprintf("/%s/search", c.GetPathVar("store")), 303)
+	http.Redirect(w, r, fmt.Sprintf("/%s", c.GetPathVar("store")), 303)
 	return
 }
 
@@ -319,7 +326,8 @@ func AddRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	record := r.FormValue("record")
 	var rec map[string]interface{}
 	json.Unmarshal([]byte(record), &rec)
-	rpc.Add(c.GetPathVar("store"), rec)
+	id := rpc.Add(c.GetPathVar("store"), rec)
+	println(id)
 	c.SetFlash("alertSuccess", "Successfully added record")
 
 	http.Redirect(w, r, fmt.Sprintf("/%s", c.GetPathVar("store")), 303)
@@ -445,22 +453,34 @@ func DelRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 
 // helper functions
 
-func GetSavedSearches(searchStore string) []string {
-	var savedSearch map[string]string
-	config.GetAs("search", searchStore, &savedSearch)
+func GetSavedSearches(db, store string) []string {
+	var savedSearch map[string]map[string]string
+	config.GetAs("search", db, &savedSearch)
 	var keys []string
-	for k := range savedSearch {
-		keys = append(keys, k)
+	if storeSearch, ok := savedSearch[store]; ok {
+		for k := range storeSearch {
+			keys = append(keys, k)
+		}
 	}
 	sort.Strings(keys)
 	return keys
 }
 
+func GetSavedSearch(db, store, query string) string {
+	var qry string
+	if query != "" {
+		var allQuery map[string]map[string]string
+		config.GetAs("search", db, &allQuery)
+		if storeQuery, ok := allQuery[store]; ok {
+			qry = storeQuery[query]
+		}
+	}
+	return qry
+}
+
 func GetSavedDBs() []string {
-	var savedConns map[string]string
-	config.GetAs("db", "connections", &savedConns)
 	var dbs []string
-	for k := range savedConns {
+	for k := range *config.GetStore("connections") {
 		dbs = append(dbs, k)
 	}
 	sort.Strings(dbs)
