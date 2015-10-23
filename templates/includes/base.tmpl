@@ -30,14 +30,8 @@
 						<span class="icon-bar"></span>
 						<span class="icon-bar"></span>
 					</button>
-					<ul class="nav navbar-nav">
-						<li class="hidden-xs">
-							<ol class="breadcrumb">
-								{{ template "breadcrumbs" . }}
-							</ol>
-						</li>
-					</ul>
 				</div>
+
 				{{ if .alert }}
 					<span id="msg" class="navbar-center text-info">
 						{{ .alert }}
@@ -56,22 +50,28 @@
 				{{ end }}
 
 				<span id="fileError" class="navbar-center text-danger hide">
-					<p id="fileMessage" class="text-danger">
-					</p>
+					<p id="fileMessage" class="text-danger"></p>
 				</span>
 
 				<span id="delete-msg" class="navbar-center text-danger hide clearfix">
 					<form id="deleteForm" class="form-inline" method="post">
-						<label id="message">&nbsp;&nbsp;&nbsp;</label>
+						<label id="message">This is the message area&nbsp;&nbsp;&nbsp;</label>
 						<button id="delete" class="btn btn-danger btn-xs">Yes</button>
 						<a id="deleteCancel" class="btn btn-default btn-xs">No</a>
 					</form>
 				</span>
 
 				<span id="JSmsg" class="navbar-center text-primary hide">
-					<p id="msg">
-					</p>
+					<p id="msg"></p>
 				</span>
+
+				<ul class="nav navbar-nav navbar-left">
+					<li class="hidden-xs">
+						<ol class="breadcrumb">
+							{{ template "breadcrumbs" . }}
+						</ol>
+					</li>
+				</ul>
 
 				<div class="collapse navbar-collapse" id="bs-navbar-collapse-1">
 					<ul class="nav navbar-nav navbar-right">
@@ -91,17 +91,26 @@
 
 		<div class="container-fluid">
 	        <div class="row">
+				<div id="content">
+	            	<div class="col-lg-2 sidebar">
+	                	<ul class="nav nav-sidebar">
+	                    	{{ template "left-sidebar" . }}
+	                	</ul>
+	            	</div>
 
-	            <div class="col-lg-2 sidebar">
-	                <ul class="nav nav-sidebar">
-	                    {{ template "left-sidebar" . }}
-	                </ul>
-	            </div>
+					{{ template "content" . }}
 
-				{{ template "content" . }}
+					{{ template "right-sidebar" . }}
 
-				{{ template "right-sidebar" . }}
-
+				</div>
+				<div id="uploadSpinner" class="text-center hide">
+					<br><br><br><br><br>
+					<p class="lead">
+						<strong>Uploading your file...</strong><br/>
+					</p>
+					<i class="fa fa-5x fa-circle-o-notch fa-spin"></i>
+					<p class="lead">One moment please.</p>
+				</div>
 			</div>
 		</div>
 		<div>

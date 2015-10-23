@@ -2,12 +2,16 @@
 
 {{ define "breadcrumbs" }}
     <li><a href="/">{{ .db | title }}</a></li>
-    <li><a href="/{{ .storeName }}">{{ .storeName | title }}</a></li>
+    <li><a href="/{{ .storeName }}">{{ .storeName }}</a></li>
     <li class="active">{{ if .record }}{{ .record.Id }}{{ else }}New{{ end }}</li>
 {{ end }}
 
 {{ define "nav-right-dd" }}
-    <li><a href="#" id="save">Save</a></li>
+    <li><a href="#" id="save">Save Record</a></li>
+    {{ if .record }}
+        <li><a href="#" data-message="Are you sure you would like to delete this record?" data-delete="/{{ .storeName }}/{{ .record.Id }}/del" class="delete-button text-danger">Delete Record</a></li>
+    {{ end }}
+    <li><a href="/{{ .storeName }}" id="save">Cancel</a></li>
 {{ end }}
 
 {{ define "left-sidebar" }}
@@ -30,6 +34,7 @@
 {{ define "scripts" }}
     <script src="/static/js/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
     <script type="text/javascript">
+        var valid
         var editor = ace.edit("editor");
         editor.session.setMode("ace/mode/json");
         editor.renderer.setShowGutter(true);
@@ -40,16 +45,18 @@
         editor.getSession().on("changeAnnotation", function(){
             var annot = editor.getSession().getAnnotations();
             if (annot.length > 0) {
-                $('button#save').attr('disabled', 'disabled');
+                valid = false;
             } else {
-                $('button#save').removeAttr('disabled');
+                valid = true;
             }
         });
         $(document).ready(function() {
             $('#save').click(function(e) {
-                e.preventDefault();
-                $('input#record').val(editor.getValue());
-                $('form#save-form').submit();
+                if (valid) {
+                    e.preventDefault();
+                    $('input#record').val(editor.getValue());
+                    $('form#save-form').submit();
+                }
             });
         });
     </script>

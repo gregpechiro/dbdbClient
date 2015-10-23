@@ -1,7 +1,7 @@
 .navbar {
     margin-bottom: 0px;
 }
-.navbar-header ol.breadcrumb {
+.navbar-left ol.breadcrumb {
     padding-top: 15px;
     margin-bottom: 0px;
 }
@@ -53,7 +53,7 @@ body {
     padding: 15px 15px;
     font-size: 18px;
     line-height: 20px;
-    z-index: -100;
+    /*z-index: -100;*/
 }
 
 .nav .breadcrumb a {

@@ -3,10 +3,8 @@
     {{ range $store := .stores }}
         <li {{ if $storeName }}{{ if eq $store.Name $storeName }}class="active"{{ end }}{{ end }}>
             <a href="/{{ $store.Name }}" class="clearfix">
-                <span>
-                    {{ title $store.Name }}
-                </span>
-                <span class="pull-right badge">{{ $store.Docs }}</span>
+                <span>{{ $store.Name }}</span>
+                <span id="{{ $store.Name }}" class="pull-right badge">{{ $store.Docs }}</span>
             </a>
         </li>
     {{ end }}

@@ -1,6 +1,7 @@
 {{ define "title"}}DBUI{{ end }}
 
 {{ define "head" }}
+    <style>input.uploader{position:absolute;left:-9999px;}label.uploader{cursor:pointer;}</style>
     <style>
         .pagination {
             margin: 0;
@@ -10,7 +11,7 @@
 
 {{ define "breadcrumbs" }}
     <li><a href="/">{{ .db | title }}</a></li>
-    <li class="active">{{ .storeName | title }}</li>
+    <li class="active">{{ .storeName }}</li>
 {{ end }}
 
 {{ define "nav-right" }}
@@ -30,7 +31,8 @@
 
 {{ define "nav-right-dd" }}
     <li><a href="/{{ .storeName }}/new">New Record</a></li>
-    <li><a href="/{{ .storeName }}/import">Import Data</a></li>
+    <li><a href="#" data-toggle="modal" data-target="#importModal">Import Data</a></li>
+    <li><a href="#" id="export" download="" >Export Data</a></li>
     <li><a href="#" data-message="Are you sure you would like to delete this store?" data-delete="/{{ .storeName }}" class="delete-button text-danger">Delete Store</a></li>
 {{ end }}
 
@@ -70,6 +72,31 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="importModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="myModalLabel">Upload File</h4>
+                </div>
+                <div class="modal-body">
+                    <form action="/{{ .storeName }}/import" method="post" enctype="multipart/form-data">
+            			<div class="form-group">
+            				<label class="btn btn-default btn-block uploader" for="data">
+            					Select File
+            				</label>
+            				<input class="uploader" id="data" type="file" name="data" required="true">
+            			</div>
+            			<button class="btn btn-success uploader btn-block" id="upload" type="submit"
+            					disabled="true">
+            				Upload
+            			</button>
+            		</form>
+                </div>
+            </div>
+        </div>
+    </div>
 {{ end }}
 
 {{ define "right-sidebar" }}
@@ -103,61 +130,34 @@
     </script>
     <script src="/static/js/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
     <script src="/static/js/paginator.js"></script>
+    <script src="/static/js/upload.js"></script>
+    <script src="/static/js/store-search.js"></script>
     <script type="text/javascript">
-        $(document).ready(function() {
-            var editor = ace.edit("editor");
-            editor.session.setMode("ace/mode/javascript");
-            editor.renderer.setShowGutter(true);
-            editor.setHighlightActiveLine(true);
-            editor.setReadOnly(false);
-            editor.setTheme("ace/theme/terminal");
-            editor.setDisplayIndentGuides(true);
-            editor.setFontSize(15);
-            editor.getSession().on("changeAnnotation", function(){
-                var annot = editor.getSession().getAnnotations();
-                if (annot.length > 0) {
-                    $('button#search').attr('disabled', 'disabled');
-                    $('button#save-search').attr('disabled', 'disabled');
-                } else {
-                    $('button#search').removeAttr('disabled');
-                    $('button#save-search').removeAttr('disabled');
-                }
-            });
-
-            function query() {
-                if (store != [] && store.length > 0) {
-                    var filter = new Function('doc', editor.getValue());
-                    result = store.filter(filter);
-                    page = 0;
-                    $('p#msg').text('Found ' + result.length + ' records');
-                    $('.navbar-center').addClass('hide');
-                    $('span#JSmsg').removeClass('hide');
-                    genResults(paginate(result));
-                }
+        function setExport() {
+            var docs = [];
+            for (var i = 0; i < store.length; i++) {
+                docs.push(store[i].data);
             }
+            var blob = new Blob([JSON.stringify(docs)], {type : 'application/json'});
+            $('#export').attr('href', window.URL.createObjectURL(blob));
+            $('#export').attr('download', genFileName());
+        }
 
+        function genFileName() {
+            var date = new Date;
+            var month = ("0" + (date.getMonth() + 1)).slice(-2);
+            var day = ("0" + date.getDate()).slice(-2)
+            var name = storeName + '-' + date.getFullYear() + '-' + month + '-' + day + '.json';
+            return name.replace(' ', '_');
+        }
+
+        $(document).ready(function() {
+            if (store.length > 0) {
+                setExport();
+            }
             {{ if .query }}
                 query();
             {{ end }}
-
-            $('#save-search').click(function(e) {
-                e.preventDefault();
-                $('input#search').val(editor.getValue());
-                $('form#save-search-form').submit();
-            })
-
-            $('#search').click(function() {
-                query();
-            });
-
-            genResults(paginate(store));
-
-            $('select#pageSize').change(function() {
-                page = 0;
-                pageSize =+ this.value;
-                genResults(paginate(result));
-            });
-
         });
     </script>
 {{ end }}

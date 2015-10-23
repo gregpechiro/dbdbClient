@@ -18,8 +18,6 @@ import (
 	"github.com/cagnosolutions/web/tmpl"
 )
 
-//var db = mockdb.NewMockDB("backup.json", 5)
-
 var rpc = dbdb.NewClient()
 var ts = tmpl.NewTemplateStore(true)
 var config = mockdb.NewMockDB("config.json", 5)
@@ -43,14 +41,11 @@ func main() {
 	mux.Post("/:store", DelStore)
 
 	// store search
-	mux.Get("/:store/search", Search)
-	mux.Post("/:store/search", MakeSearch)
 	mux.Post("/:store/search/save", SaveSearch)
 
 	// record managment
 	mux.Get("/:store/new", NewRecord)
 	mux.Post("/:store/add", AddRecord)
-	mux.Get("/:store/import", ImportRecords)
 	mux.Post("/:store/import", UploadRecords)
 	mux.Get("/:store/:record", Record)
 	mux.Post("/:store/:record", SaveRecord)
@@ -219,62 +214,6 @@ func DelStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
-// GET render complex search for specified store from specified DB
-func Search(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
-		return
-	}
-	msgk, msgv := c.GetFlash()
-	if !rpc.HasStore(c.GetPathVar("store")) {
-		c.SetFlash("alertError", "Invalid store")
-		http.Redirect(w, r, fmt.Sprintf("/%s", c.GetPathVar("db")), 303)
-		return
-	}
-	var query map[string]string
-	config.GetAs("search", c.GetPathVar("store"), &query)
-	ts.Render(w, "search.tmpl", tmpl.Model{
-		msgk:          msgv,
-		"savedSearch": GetSavedSearches(c.Get("db").(string), c.GetPathVar("store")),
-		"query":       query[r.FormValue("query")],
-		"db":          c.Get("db"),
-		"stores":      rpc.GetAllStoreStats(),
-		"store":       rpc.GetAll(c.GetPathVar("store")),
-		"storeName":   c.GetPathVar("store"),
-	})
-	return
-}
-
-// POST submit simple search for specified store from specified DB
-func MakeSearch(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
-		return
-	}
-	// TODO:  needs refactored to work with dbdb
-	/*
-		msgk, msgv := c.GetFlash()
-		query := r.FormValue("query")
-		var qry map[string]interface{}
-		json.Unmarshal([]byte(query), &qry)
-		var result []map[string]interface{}
-		db.QueryAll(c.GetPathVar("store"), qry, &result)
-		ts.Render(w, "store.tmpl", tmpl.Model{
-			msgk:          msgv,
-			"savedSearch": GetSavedSearches(c.GetPathVar("store")),
-			"query":       query,
-			"db":          c.Get("db"),
-			"stores":      OrderStores(db.GetAllStores()),
-			"store":       result,
-			"storeName":   c.GetPathVar("store"),
-		})
-	*/
-	http.Redirect(w, r, "/"+c.GetPathVar("store"), 303)
-	return
-}
-
 // POST
 func SaveSearch(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.State {
@@ -326,27 +265,11 @@ func AddRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	record := r.FormValue("record")
 	var rec map[string]interface{}
 	json.Unmarshal([]byte(record), &rec)
-	id := rpc.Add(c.GetPathVar("store"), rec)
-	println(id)
+	rpc.Add(c.GetPathVar("store"), rec)
 	c.SetFlash("alertSuccess", "Successfully added record")
 
 	http.Redirect(w, r, fmt.Sprintf("/%s", c.GetPathVar("store")), 303)
 	return
-}
-
-func ImportRecords(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
-		return
-	}
-	msgk, msgv := c.GetFlash()
-	ts.Render(w, "import.tmpl", tmpl.Model{
-		msgk:        msgv,
-		"db":        c.Get("db"),
-		"stores":    rpc.GetAllStoreStats(),
-		"storeName": c.GetPathVar("store"),
-	})
 }
 
 func UploadRecords(w http.ResponseWriter, r *http.Request, c *web.Context) {
@@ -525,60 +448,3 @@ func SanitizeMap(m *map[string]interface{}) {
 	}
 	runtime.GC()
 }
-
-/*
-type StoreStat struct {
-	Name string
-	Docs uint64
-}
-
-type StoreStatSorted []StoreStat
-
-func (sss StoreStatSorted) Len() int {
-	return len(sss)
-}
-
-func (sss StoreStatSorted) Less(i, j int) bool {
-	return sss[i].Name < sss[j].Name
-}
-
-func (sss StoreStatSorted) Swap(i, j int) {
-	sss[i], sss[j] = sss[j], sss[i]
-}
-
-func OrderStores(stores map[string]*map[string]interface{}) []StoreStat {
-	var sss StoreStatSorted
-	for k, v := range stores {
-		sss = append(sss, StoreStat{Name: k, Docs: uint64(len(*v))})
-	}
-	sort.Sort(sss)
-	return sss
-}
-
-func OrderStore(store map[string]interface{}) []map[string]interface{} {
-	var ss []string
-	var ret []map[string]interface{}
-	for k := range store {
-		ss = append(ss, k)
-	}
-	sort.Strings(ss)
-	for _, v := range ss {
-		ret = append(ret, store[v].(map[string]interface{}))
-	}
-	return ret
-}
-
-func OrderKeys(m map[string]string) []string {
-	var keys []string
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func GetCrumbs(path string) []string {
-	ss := strings.Split(path, "/")
-	return ss[1:len(ss)]
-}
-*/

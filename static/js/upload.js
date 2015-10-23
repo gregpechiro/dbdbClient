@@ -46,7 +46,8 @@ function fileCheck(e) {
 
 (function() {
     $('button[id="upload"]').click(function() {
-        $('span[id="content"]').addClass("hide");
+        $('#importModal').modal('hide')
+        $('#content').addClass("hide");
         $('div[id="uploadSpinner"]').removeClass("hide")
     });
     $("input.uploader").change(function() {
