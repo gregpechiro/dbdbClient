@@ -35,7 +35,6 @@ func main() {
 	mux.Get("/disconnect", Disconnect)
 
 	// store managment
-	mux.Get("/new", NewStore)
 	mux.Post("/new", SaveStore)
 	mux.Get("/:store", Store)
 	mux.Post("/:store", DelStore)
@@ -96,15 +95,20 @@ func AddConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
 
 func SaveConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	var connection map[string]string
-	config.GetAs("connections", r.FormValue("name"), &connection)
+	ok := config.GetAs("connections", r.FormValue("name"), &connection)
+	if r.FormValue("name") != r.FormValue("oldName") {
+		if ok {
+			c.SetFlash("alertError", "Error connection name already exists")
+			http.Redirect(w, r, "/", 303)
+			return
+		}
+		config.Del("connections", r.FormValue("oldName"))
+	}
 	if connection == nil {
 		connection = make(map[string]string)
 	}
 	connection["address"] = r.FormValue("address")
 	connection["token"] = r.FormValue("token")
-	if r.FormValue("name") != r.FormValue("oldName") {
-		config.Del("connections", r.FormValue("oldName"))
-	}
 	config.Set("connections", r.FormValue("name"), connection)
 	c.SetFlash("alertSuccess", "Successfully updated connection")
 	http.Redirect(w, r, "/", 303)
@@ -122,7 +126,7 @@ func Connect(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	var connection map[string]string
 	if config.GetAs("connections", c.GetPathVar("db"), &connection) {
 		if address, ok := connection["address"]; ok && address != "" {
-			if err := rpc.Connect(address, connection["token"]); err == nil {
+			if rpc.Connect(address, connection["token"]) {
 				c.SetFlash("alertSuccess", "Successfully connected to database")
 				c.Set("db", c.GetPathVar("db"))
 				http.Redirect(w, r, "/", 303)
@@ -143,25 +147,14 @@ func Disconnect(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
-// POST add new tore to connected db
-func NewStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func SaveStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.State {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
 	}
-	msgk, msgv := c.GetFlash()
-	ts.Render(w, "newStore.tmpl", tmpl.Model{
-		msgk: msgv,
-		//"db":     c.GetPathVar("db"),
-		"stores": rpc.GetAllStoreStats(),
-	})
-}
-
-func SaveStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
 	name := r.FormValue("name")
@@ -179,6 +172,10 @@ func Store(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.State {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
+		return
+	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
 	msgk, msgv := c.GetFlash()
@@ -205,6 +202,10 @@ func DelStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
 	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
+		return
+	}
 	if !rpc.DelStore(c.GetPathVar("store")) {
 		c.SetFlash("alertError", "Error deleteing store")
 	} else {
@@ -219,6 +220,10 @@ func SaveSearch(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.State {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
+		return
+	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
 	var savedSearch map[string]map[string]string
@@ -244,6 +249,10 @@ func NewRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
 	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
+		return
+	}
 	msgk, msgv := c.GetFlash()
 	ts.Render(w, "record.tmpl", tmpl.Model{
 		msgk:        msgv,
@@ -262,6 +271,10 @@ func AddRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
 	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
+		return
+	}
 	record := r.FormValue("record")
 	var rec map[string]interface{}
 	json.Unmarshal([]byte(record), &rec)
@@ -276,6 +289,10 @@ func UploadRecords(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.State {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
+		return
+	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
 	r.ParseMultipartForm(32 << 20) // 32 MB
@@ -325,6 +342,10 @@ func Record(w http.ResponseWriter, r *http.Request, c *web.Context) {
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
 	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
+		return
+	}
 	msgk, msgv := c.GetFlash()
 	record := rpc.Get(c.GetPathVar("store"), GetId(c.GetPathVar("record")))
 	if record == nil {
@@ -349,6 +370,10 @@ func SaveRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
 	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
+		return
+	}
 	record := r.FormValue("record")
 	var rec map[string]interface{}
 	json.Unmarshal([]byte(record), &rec)
@@ -366,6 +391,10 @@ func DelRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.State {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
+		return
+	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
 	rpc.Del(c.GetPathVar("store"), GetId(c.GetPathVar("record")))

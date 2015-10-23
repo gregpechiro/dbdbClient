@@ -51,18 +51,23 @@ function murmurhash3_32(k, seed) {
 }
 
 function strToHex(str) {
-    return "#" + murmurhash3_32(str, 2357111317192329).toString(16).slice(0, 6);
+    return "#" + murmurhash3_32(str, 24681012141618).toString(16).slice(0, 6);
 }
 
 function colorChange(hex, lum) {
     if (hex.startsWith('#')) {
         hex = hex.slice(1, hex.length);
     }
-    var rgb = '#', c, i;
+    var rgb = '#',
+        c, i;
     for (i = 0; i < 3; i++) {
         c = parseInt(hex.substr(i * 2, 2), 16);
         c = Math.round(Math.min(Math.max(0, c + (c * lum)), 255)).toString(16);
         rgb += ('00' + c).substr(c.length);
     }
     return rgb;
+}
+
+function decimalRound(num, prec) {
+    return Math.round(num * Math.pow(10, prec)) / Math.pow(10, prec);
 }

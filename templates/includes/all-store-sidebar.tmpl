@@ -1,4 +1,17 @@
 {{ define "all-store-sidebar" }}
+    <li class="clearfix">
+        <div class="col-lg-12 clearfix">
+            <label>Add Store</label>
+            <form action="/new" method="post">
+                <div class="input-group form-group">
+                    <input type="text" class="form-control" name="name" placeholder="Name">
+                    <span class="input-group-btn">
+                        <button class="btn btn-primary">Add</button>
+                    </span>
+                </div>
+            </form>
+        </div>
+    </li>
     {{ $storeName := .storeName }}
     {{ range $store := .stores }}
         <li {{ if $storeName }}{{ if eq $store.Name $storeName }}class="active"{{ end }}{{ end }}>

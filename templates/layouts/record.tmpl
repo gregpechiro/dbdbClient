@@ -42,6 +42,8 @@
         editor.setReadOnly(false);
         editor.setTheme("ace/theme/vibrant_ink");
         editor.setDisplayIndentGuides(true);
+        editor.moveCursorTo(1,5)
+        $('textarea.ace_text-input').focus()
         editor.getSession().on("changeAnnotation", function(){
             var annot = editor.getSession().getAnnotations();
             if (annot.length > 0) {
@@ -52,7 +54,8 @@
         });
         $(document).ready(function() {
             $('#save').click(function(e) {
-                if (valid) {
+                doc = editor.getValue();
+                if (doc !== '' && valid && !$.isEmptyObject(JSON.parse(doc))) {
                     e.preventDefault();
                     $('input#record').val(editor.getValue());
                     $('form#save-form').submit();

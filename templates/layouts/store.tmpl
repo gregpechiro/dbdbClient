@@ -31,8 +31,8 @@
 
 {{ define "nav-right-dd" }}
     <li><a href="/{{ .storeName }}/new">New Record</a></li>
-    <li><a href="#" data-toggle="modal" data-target="#importModal">Import Data</a></li>
-    <li><a href="#" id="export" download="" >Export Data</a></li>
+    <li><a href="#" data-toggle="modal" data-target="#importModal">Import Store</a></li>
+    <li><a href="#" id="export" download="" >Export Store</a></li>
     <li><a href="#" data-message="Are you sure you would like to delete this store?" data-delete="/{{ .storeName }}" class="delete-button text-danger">Delete Store</a></li>
 {{ end }}
 
@@ -127,6 +127,7 @@
         var store = {{ if .store }}JSON.parse({{ .store | pretty }}){{ else }}[]{{ end }}
         var result = {{ if .store }}JSON.parse({{ .store | pretty }}){{ else }}[]{{ end }}
         var storeName = '{{ .storeName }}';
+        var editor = ace.edit("editor");
     </script>
     <script src="/static/js/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
     <script src="/static/js/paginator.js"></script>

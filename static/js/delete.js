@@ -1,9 +1,9 @@
 $(document).ready(function() {
 
 	$('.delete-button').click(function() {
-		$('.navbar-center').addClass('hide');
     	$('form#deleteForm').attr('action', $(this).attr('data-delete'));
     	$('label#message').html($(this).attr('data-message'));
+		$('.navbar-center').addClass('hide');
     	$('span#delete-msg').removeClass('hide');
     });
 
@@ -17,9 +17,9 @@ $(document).ready(function() {
 
 function registerDelete() {
 	$('.delete-button').click(function() {
-		$('#msg').remove();
-		$('form#deleteForm').attr('action', $(this).attr('data-delete'));
-		$('label#message').html($(this).attr('data-message'));
-		$('span#delete-msg').removeClass('hide');
-	});
+    	$('form#deleteForm').attr('action', $(this).attr('data-delete'));
+    	$('label#message').html($(this).attr('data-message'));
+		$('.navbar-center').addClass('hide');
+    	$('span#delete-msg').removeClass('hide');
+    });
 }

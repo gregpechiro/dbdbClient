@@ -4,7 +4,7 @@ function query() {
         var filter = new Function('doc', editor.getValue());
         result = store.filter(filter);
         page = 0;
-        $('p#msg').text('Found ' + result.length + ' records');
+        $('p#msgContent').text('Found ' + result.length + ' records');
         $('.navbar-center').addClass('hide');
         $('span#JSmsg').removeClass('hide');
         genResults(paginate(result));
@@ -12,7 +12,6 @@ function query() {
 }
 
 $(document).ready(function() {
-    var editor = ace.edit("editor");
     editor.session.setMode("ace/mode/javascript");
     editor.renderer.setShowGutter(true);
     editor.setHighlightActiveLine(true);

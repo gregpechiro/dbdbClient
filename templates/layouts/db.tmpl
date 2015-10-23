@@ -1,7 +1,20 @@
 {{ define "title"}}DBUI{{ end }}
 
+{{ define "head" }}
+    <style>
+        .panel-body {
+            padding: 0;
+        }
+    </style>
+{{ end }}
+
 {{ define "breadcrumbs" }}
     <li class="active">{{ .db | title }}</li>
+{{ end }}
+
+{{ define "nav-right-dd" }}
+    <li><a href="#">Import Database</a></li>
+    <li><a href="#">Export Database</a></li>
 {{ end }}
 
 {{ define "left-sidebar" }}
@@ -10,19 +23,20 @@
 
 {{ define "content" }}
     <br><br>
-    <div class="col-lg-offset-2 col-lg-7">
-        <div class="col-lg-6">
+    <div class="col-lg-offset-2 col-lg-10">
+        <div class="col-lg-8">
             <div class="panel panel-default">
                 <div class="panel-heading clearfix">
                     Records
                     <span id="totalRecords" class="pull-right"></span>
                 </div>
                 <div class="panel-body">
-                    <canvas id="recordsChart"></canvas>
+                    <canvas id="recordsChart" height="250"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-lg-6">
+
+        <div class="col-lg-4">
             <div class="panel panel-default">
                 <div class="panel-heading clearfix">
                     Disk Usage
@@ -32,8 +46,6 @@
                     <canvas id="diskChart"></canvas>
                 </div>
             </div>
-        </div>
-        <div class="col-lg-6">
             <div class="panel panel-default">
                 <div class="panel-heading clearfix">
                     Deletes
@@ -43,7 +55,26 @@
                     <canvas id="deleteChart"></canvas>
                 </div>
             </div>
+            <div class="panel panel-default">
+                <div class="panel-heading clearfix">
+                    Adds
+                    <span id="totalAdds" class="pull-right"></span>
+                </div>
+                <div class="panel-body">
+                    <canvas id="addChart"></canvas>
+                </div>
+            </div>
         </div>
+
+        <div class="col-lg-6">
+
+        </div>
+
+        <div class="col-lg-6">
+
+        </div>
+
+        <!--
         <div class="col-lg-6">
             <div class="panel panel-default">
                 <div class="panel-heading clearfix">
@@ -58,17 +89,6 @@
         <div class="col-lg-6">
             <div class="panel panel-default">
                 <div class="panel-heading clearfix">
-                    Adds
-                    <span id="totalAdds" class="pull-right"></span>
-                </div>
-                <div class="panel-body">
-                    <canvas id="addChart"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="panel panel-default">
-                <div class="panel-heading clearfix">
                     Updates
                     <span id="totalUpdate" class="pull-right"></span>
                 </div>
@@ -77,30 +97,12 @@
                 </div>
             </div>
         </div>
+         -->
     </div>
 {{ end }}
 
 {{ define "right-sidebar" }}
-    <div class="col-lg-offset-9 col-lg-3 sidebar">
-        <label>Add Store</label>
-        <form action="/new" method="post">
-            <div class="input-group form-group">
-                <input type="text" class="form-control" name="name" placeholder="Name">
-                <span class="input-group-btn">
-                    <button class="btn btn-primary">Add</button>
-                </span>
-            </div>
-        </form>
-        <label>String Search</label>
-        <form role="search">
-            <div class="input-group">
-                <input type="search" class="form-control" placeholder="Search">
-                <span class="input-group-btn">
-                    <button type="submit" class="btn btn-default">Submit</button>
-                </span>
-            </div>
-        </form>
-    </div>
+
 {{ end }}
 
 {{ define "scripts" }}
@@ -108,16 +110,15 @@
     <script src="/static/js/chart.js"></script>
     <script type="text/javascript">
 
-        var test;
-        Chart.defaults.global.customTooltips = function(tooltip) {
-            test = tooltip.text;
-        };
+        Chart.defaults.global.responsive = true;
+        //Chart.defaults.global.maintainAspectRatio = false;
 
 
         var stores = {{ if .stores }}JSON.parse({{ .stores | pretty }}){{ else }}[]{{ end }};
         var names = [];
         var docCount = [];
         var sizes = [];
+        var prettySizes = [];
         var diskLabel = [];
         var deletes = [];
         var adds = [];
@@ -135,6 +136,7 @@
                 docCount.push(stores[i].Docs);
                 deletes.push(stores[i].Id - stores[i].Docs);
                 sizes.push(stores[i].Size);
+                prettySizes.push(stores[i].SizePretty);
                 diskLabel.push(stores[i].SizePretty);
                 adds.push(stores[i].Id);
                 colors.push(strToHex(stores[i].Name));
@@ -145,15 +147,20 @@
                 totalDisk += stores[i].Size;
                 totalAdds += stores[i].Id;
             }
+            if (totalDisk >= 1024) {
+                totalDisk = decimalRound((totalDisk / 1024), 2) + ' MB';
+            } else {
+                totalDisk = totalDisk + ' KB';
+            }
         }
 
         $('#totalRecords').html('Total Records: ' + totalRecords);
         $('#totalDisk').html('Total Disk Usage: ' + totalDisk);
 
         $('#totalDel').html('Total Deletes: ' + totalDel);
-        $('#totalRead').html('Total Reads: ' + totalDel);
         $('#totalAdds').html('Total Adds: ' + totalAdds);
-        $('#totalUpdate').html('Total Updates: ' + totalDel);
+        // $('#totalRead').html('Total Reads: ' + totalDel);
+        // $('#totalUpdate').html('Total Updates: ' + totalDel);
 
 
         var recordsData = {
@@ -185,11 +192,12 @@
         }
         var diskCtx = document.getElementById("diskChart").getContext("2d");
         var diskChart = new Chart(diskCtx).Pie(diskData, {
-            customTooltips: function(tooltip) {
-                if (!tooltip) {
-                    return;
+            tooltipTemplate: function(valueObject) {
+                var val = valueObject.value + ' KB';
+                if (valueObject.value > 1024) {
+                    val = decimalRound((valueObject.value / 1024), 2) + ' MB';
                 }
-                console.log(tooltip.text);
+                return valueObject.label + ' : ' + val;
             }
         });
 
@@ -219,6 +227,7 @@
         var addCtx = document.getElementById("addChart").getContext("2d");
         var addChart = new Chart(addCtx).PolarArea(addData);
 
+        /*
         var readData = [];
         for (i in deletes) {
             var dat = {
@@ -244,7 +253,8 @@
         }
         var updateCtx = document.getElementById("updateChart").getContext("2d");
         var updateChart = new Chart(updateCtx).PolarArea(updateData);
-        
+        */
+
         for (var i = 0; i < names.length; i++) {
             $('span[id="' + names[i] + '"]').css('background-color', colors[i]);
         }
