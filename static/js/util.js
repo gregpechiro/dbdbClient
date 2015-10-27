@@ -71,3 +71,11 @@ function colorChange(hex, lum) {
 function decimalRound(num, prec) {
     return Math.round(num * Math.pow(10, prec)) / Math.pow(10, prec);
 }
+
+function genFileName(baseName) {
+    var date = new Date;
+    var month = ("0" + (date.getMonth() + 1)).slice(-2);
+    var day = ("0" + date.getDate()).slice(-2)
+    var name = baseName + '_' + date.getFullYear() + '-' + month + '-' + day;
+    return name.replace(' ', '_');
+}

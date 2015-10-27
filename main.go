@@ -1,16 +1,19 @@
 package main
 
 import (
+	"archive/tar"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cagnosolutions/dbdb"
 	"github.com/cagnosolutions/mockdb"
@@ -33,6 +36,8 @@ func main() {
 
 	mux.Get("/connect/:db", Connect)
 	mux.Get("/disconnect", Disconnect)
+
+	mux.Get("/export", ExportDB)
 
 	// store managment
 	mux.Post("/new", SaveStore)
@@ -309,8 +314,6 @@ func UploadRecords(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	case "application/json":
 		dec := json.NewDecoder(file)
 		err = dec.Decode(&m)
-	case "text/xml":
-
 	case "text/csv":
 		m, err = DecodeCSV(file)
 	default:
@@ -403,6 +406,76 @@ func DelRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
+func ExportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
+	var response = make(map[string]interface{})
+	if !rpc.State {
+		response["complete"] = true
+		response["path"] = "/"
+		b, _ := json.Marshal(response)
+		fmt.Fprintf(w, "%s", b)
+		return
+	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		response["complete"] = true
+		response["path"] = "/disconnect"
+		b, _ := json.Marshal(response)
+		fmt.Fprintf(w, "%s", b)
+		return
+	}
+	response["complete"] = false
+	path := "static/export/"
+	fullPath := path + strings.Replace(c.Get("db").(string), " ", "_", -1) + "_" + time.Now().Format("2006-01-02") + ".tar"
+	if _, err := os.Stat(fullPath); err == nil {
+		response["complete"] = true
+		response["path"] = fullPath
+		b, _ := json.Marshal(response)
+		fmt.Fprintf(w, "%s", b)
+		return
+	}
+	err := os.MkdirAll(path, 0755)
+	if HasError("/", err, w, response) {
+		return
+	}
+	tarFile, err := os.Create(fullPath)
+	if HasError("/", err, w, response) {
+		return
+	}
+	defer tarFile.Close()
+	tw := tar.NewWriter(tarFile)
+	defer tw.Close()
+	for _, stat := range rpc.GetAllStoreStats() {
+		var docs []map[string]interface{}
+		for _, doc := range rpc.GetAll(stat.Name) {
+			docs = append(docs, doc.Data)
+		}
+		b, err := json.Marshal(docs)
+		if HasError("/", err, w, response) {
+			return
+		}
+		hdr := &tar.Header{
+			Name: stat.Name + ".json",
+			Mode: 0600,
+			Size: int64(len(b)),
+		}
+		err = tw.WriteHeader(hdr)
+		if HasError("/", err, w, response) {
+			return
+		}
+		_, err = tw.Write(b)
+		if HasError("/", err, w, response) {
+			return
+		}
+	}
+	response["complete"] = true
+	response["path"] = fullPath
+	b, _ := json.Marshal(response)
+	if HasError("/", err, w, response) {
+		return
+	}
+	fmt.Fprintf(w, "%s", b)
+	return
+}
+
 // helper functions
 
 func GetSavedSearches(db, store string) []string {
@@ -476,4 +549,18 @@ func SanitizeMap(m *map[string]interface{}) {
 		(*m)[strings.ToLower(k[0:1])+k[1:]] = v
 	}
 	runtime.GC()
+}
+
+func HasError(redirect string, err error, w http.ResponseWriter, response map[string]interface{}) bool {
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		response["complete"] = false
+		b, err2 := json.Marshal(response)
+		if err2 != nil {
+			fmt.Fprintf(w, "ERROR")
+		}
+		fmt.Fprintf(w, "%s", b)
+		return true
+	}
+	return false
 }

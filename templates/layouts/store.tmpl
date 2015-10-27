@@ -133,6 +133,7 @@
     <script src="/static/js/paginator.js"></script>
     <script src="/static/js/upload.js"></script>
     <script src="/static/js/store-search.js"></script>
+    <script src="/static/js/util.js"></script>
     <script type="text/javascript">
         function setExport() {
             var docs = [];
@@ -141,15 +142,7 @@
             }
             var blob = new Blob([JSON.stringify(docs)], {type : 'application/json'});
             $('#export').attr('href', window.URL.createObjectURL(blob));
-            $('#export').attr('download', genFileName());
-        }
-
-        function genFileName() {
-            var date = new Date;
-            var month = ("0" + (date.getMonth() + 1)).slice(-2);
-            var day = ("0" + date.getDate()).slice(-2)
-            var name = storeName + '-' + date.getFullYear() + '-' + month + '-' + day + '.json';
-            return name.replace(' ', '_');
+            $('#export').attr('download', genFileName(storeName) + '.json');
         }
 
         $(document).ready(function() {

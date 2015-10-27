@@ -1,0 +1,29 @@
+QUERY 'store' WHERE key1 = `value1`, key2 ^ `value2`, key3 < `value3`, key4 > `value4`
+
+KEYWORDS
+
+SORTASC
+SORTDESC
+LIMIT
+
+QUERY user WHERE email = 'gregpechiro@yahoo.com', password = 'skjdnkjnsdjnsd', active = true
+
+QUERY user WHERE email = `gregpechiro@yahoo.com`, DOCID ^ 5
+
+QUERY video WHERE SORT DESC DOCID, LIMIT = 10
+
+QUERY user WHERE DOCID < 100
+
+QUERY user WHERE active = true SORTDESC DOCID
+
+QUERY user WHERE DOCCREATED > `10-27-2014`
+
+
+
+var LIMIT = Q[KEYWORD, WS, IDENT]
+
+
+
+ID
+CREATED
+MODIFIED
