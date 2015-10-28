@@ -1,10 +1,8 @@
+
 $(document).ready(function() {
 
     Chart.defaults.global.responsive = true;
-    //Chart.defaults.global.maintainAspectRatio = false;
 
-
-    
     var names = [];
     var docCount = [];
     var sizes = [];
@@ -40,7 +38,7 @@ $(document).ready(function() {
         if (totalDisk >= 1024) {
             totalDisk = decimalRound((totalDisk / 1024), 2) + ' MB';
         } else {
-            totalDisk = totalDisk + ' KB';
+            totalDisk = decimalRound(totalDisk, 2) + ' KB';
         }
     }
 

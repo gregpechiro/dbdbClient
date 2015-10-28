@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -38,6 +39,7 @@ func main() {
 	mux.Get("/disconnect", Disconnect)
 
 	mux.Get("/export", ExportDB)
+	mux.Post("/import", ImportDB)
 
 	// store managment
 	mux.Post("/new", SaveStore)
@@ -473,6 +475,62 @@ func ExportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
 		return
 	}
 	fmt.Fprintf(w, "%s", b)
+	return
+}
+
+func ImportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
+	if !rpc.State {
+		http.Redirect(w, r, "/", 303)
+		c.SetFlash("alertError", "Error no connection to a database")
+		return
+	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
+		return
+	}
+
+	r.ParseMultipartForm(32 << 20) // 32 MB
+	tarFile, handler, err := r.FormFile("import")
+	if err != nil || len(handler.Header["Content-Type"]) < 1 {
+		fmt.Printf("dbdbClient >> ImportDB() >> lenfile header: %v", err)
+		c.SetFlash("alertError", "Error uploading file")
+		http.Redirect(w, r, "/"+c.GetPathVar("store")+"/import", 303)
+		return
+	}
+	defer tarFile.Close()
+	// check type
+
+	tarReader := tar.NewReader(tarFile)
+	tarData := make(map[string][]map[string]interface{})
+	for {
+		hdr, err := tarReader.Next()
+		if err == io.EOF {
+			// end of tar archive
+			break
+		}
+		if err != nil {
+			fmt.Printf("dbdbClient >> ImportDB() >> tarReader.Next(): %v", err)
+			c.SetFlash("alertError", "Error uploading file")
+			http.Redirect(w, r, "/", 303)
+			return
+		}
+
+		buf := new(bytes.Buffer)
+		io.Copy(buf, tarReader)
+		b := buf.Bytes()
+		var st []map[string]interface{}
+		json.Unmarshal(b, &st)
+		tarData[strings.Split(hdr.Name, ".")[0]] = st
+	}
+
+	for store, data := range tarData {
+		rpc.AddStore(store)
+		for _, doc := range data {
+			rpc.Add(store, doc)
+		}
+	}
+	c.SetFlash("alertSuccess", "Successfully imported database")
+	http.Redirect(w, r, "/", 303)
 	return
 }
 

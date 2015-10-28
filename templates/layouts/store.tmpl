@@ -81,7 +81,7 @@
                     <h4 class="modal-title" id="myModalLabel">Upload File</h4>
                 </div>
                 <div class="modal-body">
-                    <form action="/{{ .storeName }}/import" method="post" enctype="multipart/form-data">
+                    <form id="uploader" action="/{{ .storeName }}/import" method="post" enctype="multipart/form-data">
             			<div class="form-group">
             				<label class="btn btn-default btn-block uploader" for="data">
             					Select File
@@ -152,6 +152,10 @@
             {{ if .query }}
                 query();
             {{ end }}
+
+            uploader.defaultText = "Select File";
+            uploader.fileTypes = ["application/json", "text/csv"];
+            uploader.fileTypeErrorMsg = "Incorrect file type. All files must be JSON or CSV"
         });
     </script>
 {{ end }}
