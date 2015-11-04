@@ -63,8 +63,9 @@ func main() {
 // GET render all saved DBs
 func Root(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	msgk, msgv := c.GetFlash()
+
 	// Not connected display all DBs
-	if !rpc.State {
+	if !rpc.Alive() {
 		ts.Render(w, "index.tmpl", tmpl.Model{
 			msgk:    msgv,
 			"dbs":   GetSavedDBs(),
@@ -72,6 +73,7 @@ func Root(w http.ResponseWriter, r *http.Request, c *web.Context) {
 		})
 		return
 	}
+
 	if c.Get("db") == nil || c.Get("db").(string) == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
@@ -141,7 +143,6 @@ func Connect(w http.ResponseWriter, r *http.Request, c *web.Context) {
 			}
 		}
 	}
-	rpc.State = false
 	c.SetFlash("alertError", "Error connecting to the database")
 	http.Redirect(w, r, "/", 303)
 	return
@@ -155,7 +156,7 @@ func Disconnect(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 func SaveStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
+	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
@@ -176,7 +177,7 @@ func SaveStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
 
 // GET render specified store from specified DB
 func Store(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
+	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
@@ -204,7 +205,7 @@ func Store(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 func DelStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
+	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
@@ -224,7 +225,7 @@ func DelStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
 
 // POST
 func SaveSearch(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
+	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
@@ -251,7 +252,7 @@ func SaveSearch(w http.ResponseWriter, r *http.Request, c *web.Context) {
 
 // GET render empty record for specified store from specified DB
 func NewRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
+	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
@@ -273,7 +274,7 @@ func NewRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 
 // POST submit new record to specified store from specified DB to add
 func AddRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
+	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
@@ -293,7 +294,7 @@ func AddRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 func UploadRecords(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
+	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
@@ -342,7 +343,7 @@ func UploadRecords(w http.ResponseWriter, r *http.Request, c *web.Context) {
 
 // GET render specified record from specified store from specified DB
 func Record(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
+	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
@@ -370,7 +371,7 @@ func Record(w http.ResponseWriter, r *http.Request, c *web.Context) {
 
 // POST submit existing record to specified store from specified DB to save
 func SaveRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
+	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
@@ -393,7 +394,7 @@ func SaveRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 
 // POST submit existing record id to specified store from specified DB to delete
 func DelRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
+	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
 		return
@@ -408,9 +409,13 @@ func DelRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
+func isConnected(r string) bool {
+	return rpc.HasStore(r)
+}
+
 func ExportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	var response = make(map[string]interface{})
-	if !rpc.State {
+	if !rpc.Alive() {
 		response["complete"] = true
 		response["path"] = "/"
 		b, _ := json.Marshal(response)
@@ -479,7 +484,7 @@ func ExportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 func ImportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.State {
+	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
 		return

@@ -51,15 +51,15 @@ Uploader.prototype = {
         		$('input[id="' + e.id + '"]')[0].type = "text";
         		$('input[id="' + e.id + '"]')[0].type = "file";
         		$('p[id="fileMessage"]').html(this.fileTypeErrorMsg);
-        		$('span[id="fileError"]').removeClass("hide");
+        		$('div[id="fileError"]').removeClass("hide");
         	}
         }
     },
     init: function() {
         $('button[id="upload"]').click(function() {
-            $('#importModal').modal('hide')
+            $('#importModal').modal('hide');
             $('#content').addClass("hide");
-            $('div[id="uploadSpinner"]').removeClass("hide")
+            $('div[id="uploadSpinner"]').removeClass("hide");
         });
         $("input.uploader").change(function() {
             uploader.fileCheck(this);

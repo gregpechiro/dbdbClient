@@ -81,6 +81,13 @@
                     <h4 class="modal-title" id="myModalLabel">Upload File</h4>
                 </div>
                 <div class="modal-body">
+                    <div class="row">
+                        <div class="col-lg-12 text-center">
+                            <div id="fileError" class="text-danger hide">
+    					        <p id="fileMessage" class="text-danger"></p>
+    				        </div>
+                        </div>
+                    </div>
                     <form id="uploader" action="/{{ .storeName }}/import" method="post" enctype="multipart/form-data">
             			<div class="form-group">
             				<label class="btn btn-default btn-block uploader" for="data">
@@ -155,7 +162,9 @@
 
             uploader.defaultText = "Select File";
             uploader.fileTypes = ["application/json", "text/csv"];
-            uploader.fileTypeErrorMsg = "Incorrect file type. All files must be JSON or CSV"
+            uploader.fileTypeErrorMsg = "Incorrect file type. All files must be JSON or CSV";
+            uploader.maxSize =  (1024 * 1024 * 4);
+            uploader.maxSizeMsg = "Files cannot be larger than 4MB";
         });
     </script>
 {{ end }}
