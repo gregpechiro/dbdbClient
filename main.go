@@ -30,6 +30,7 @@ func main() {
 	mux := web.NewMux("CTIXID", (web.HOUR / 2))
 
 	// db managment
+	mux.Get("/test", Test)
 	mux.Get("/", Root)
 	mux.Post("/connection", AddConnection)
 	mux.Post("/connection/save", SaveConnection)
@@ -40,6 +41,7 @@ func main() {
 
 	mux.Get("/export", ExportDB)
 	mux.Post("/import", ImportDB)
+	mux.Post("/erase", EraseDB)
 
 	// store managment
 	mux.Post("/new", SaveStore)
@@ -60,7 +62,7 @@ func main() {
 	mux.Serve(":8080")
 }
 
-// GET render all saved DBs
+// GET render all saved DBs or show currently cinnected DB
 func Root(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	msgk, msgv := c.GetFlash()
 
@@ -86,7 +88,7 @@ func Root(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
-// POST save new db connection
+// POST add new db connection
 func AddConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	var connection map[string]string
 	config.GetAs("connections", r.FormValue("name"), &connection)
@@ -102,6 +104,7 @@ func AddConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
+// POST update existing DB connection
 func SaveConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	var connection map[string]string
 	ok := config.GetAs("connections", r.FormValue("name"), &connection)
@@ -124,6 +127,7 @@ func SaveConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
+// POST delete saved DB connection
 func DelConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	config.Del("connections", c.GetPathVar("db"))
 	c.SetFlash("alertSuccess", "Successfully deleted connection")
@@ -131,6 +135,7 @@ func DelConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
+// GET connect to DB
 func Connect(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	var connection map[string]string
 	if config.GetAs("connections", c.GetPathVar("db"), &connection) {
@@ -148,6 +153,7 @@ func Connect(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
+// GET disconnect from DB
 func Disconnect(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	rpc.Disconnect()
 	c.SetFlash("alertSuccess", "Disconnected")
@@ -155,6 +161,299 @@ func Disconnect(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
+func Test(w http.ResponseWriter, r *http.Request, c *web.Context) {
+	var response = make(map[string]interface{})
+	if !rpc.Alive() {
+		response["complete"] = true
+		response["path"] = "/"
+		b, _ := json.Marshal(response)
+		fmt.Fprintf(w, "%s", b)
+		return
+	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		response["complete"] = true
+		response["path"] = "/disconnect"
+		b, _ := json.Marshal(response)
+		fmt.Fprintf(w, "%s", b)
+		return
+	}
+	exportData := rpc.Export()
+	var dat map[string][]map[string]interface{}
+	json.Unmarshal([]byte(exportData), &dat)
+	fmt.Fprintf(w, "%+#v", dat)
+	return
+	/*
+		response["complete"] = false
+		path := "static/export/"
+		fullPath := path + strings.Replace(c.Get("db").(string), " ", "_", -1) + "_" + time.Now().Format("2006-01-02") + ".json"
+
+		if _, err := os.Stat(fullPath); err == nil {
+			response["complete"] = true
+			response["path"] = fullPath
+			b, _ := json.Marshal(response)
+			fmt.Fprintf(w, "%s", b)
+			return
+		}
+
+		err := os.MkdirAll(path, 0755)
+		if HasError("/", err, w, response) {
+			return
+		}
+		tarFile, err := os.Create(fullPath)
+		if HasError("/", err, w, response) {
+			return
+		}
+
+		defer tarFile.Close()
+		tw := tar.NewWriter(tarFile)
+		defer tw.Close()
+
+		for _, stat := range rpc.GetAllStoreStats() {
+			var docs []map[string]interface{}
+			for _, doc := range rpc.GetAll(stat.Name) {
+				docs = append(docs, doc.Data)
+			}
+
+			b, err := json.Marshal(docs)
+			if HasError("/", err, w, response) {
+				return
+			}
+			hdr := &tar.Header{
+				Name: stat.Name + ".json",
+				Mode: 0600,
+				Size: int64(len(b)),
+			}
+			err = tw.WriteHeader(hdr)
+			if HasError("/", err, w, response) {
+				return
+			}
+			_, err = tw.Write(b)
+			if HasError("/", err, w, response) {
+				return
+			}
+
+		}
+		exportData := rpc.Export()
+		var dat map[string][]map[string]interface{}
+		err = json.Unmarshal([]byte(exportData), &dat)
+		if HasError("/", err, w, response) {
+			return
+		}
+		for store, docs := range dat {
+			b, err := json.Marshal(docs)
+			if HasError("/", err, w, response) {
+				return
+			}
+			hdr := &tar.Header{
+				Name: store + ".json",
+				Mode: 0600,
+				Size: int64(len(b)),
+			}
+			err = tw.WriteHeader(hdr)
+			if HasError("/", err, w, response) {
+				return
+			}
+			_, err = tw.Write(b)
+			if HasError("/", err, w, response) {
+				return
+			}
+		}
+
+		response["complete"] = true
+		response["path"] = fullPath
+		b, _ := json.Marshal(response)
+		if HasError("/", err, w, response) {
+			return
+		}
+		fmt.Fprintf(w, "%s", b)
+		return*/
+}
+
+// GET create .tar file from connected DB of all its stores
+// and records and return download link
+func ExportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
+	var response = make(map[string]interface{})
+	if !rpc.Alive() {
+		response["complete"] = true
+		response["path"] = "/"
+		b, _ := json.Marshal(response)
+		fmt.Fprintf(w, "%s", b)
+		return
+	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		response["complete"] = true
+		response["path"] = "/disconnect"
+		b, _ := json.Marshal(response)
+		fmt.Fprintf(w, "%s", b)
+		return
+	}
+	response["complete"] = false
+	path := "static/export/"
+	fullPath := path + strings.Replace(c.Get("db").(string), " ", "_", -1) + "_" + time.Now().Format("2006-01-02") + ".tar"
+
+	/*if _, err := os.Stat(fullPath); err == nil {
+		response["complete"] = true
+		response["path"] = fullPath
+		b, _ := json.Marshal(response)
+		fmt.Fprintf(w, "%s", b)
+		return
+	}*/
+
+	err := os.MkdirAll(path, 0755)
+	if HasError("/", err, w, response) {
+		return
+	}
+
+	//tarFile, err := os.OpenFile(fullPath, os.O_TRUNC|os.O_WRONLY, 0644)
+	tarFile, err := os.Create(fullPath)
+	if HasError("/", err, w, response) {
+		return
+	}
+	defer tarFile.Close()
+	tw := tar.NewWriter(tarFile)
+	defer tw.Close()
+
+	/*for _, stat := range rpc.GetAllStoreStats() {
+		var docs []map[string]interface{}
+		for _, doc := range rpc.GetAll(stat.Name) {
+			docs = append(docs, doc.Data)
+		}
+
+		b, err := json.Marshal(docs)
+		if HasError("/", err, w, response) {
+			return
+		}
+		hdr := &tar.Header{
+			Name: stat.Name + ".json",
+			Mode: 0600,
+			Size: int64(len(b)),
+		}
+		err = tw.WriteHeader(hdr)
+		if HasError("/", err, w, response) {
+			return
+		}
+		_, err = tw.Write(b)
+		if HasError("/", err, w, response) {
+			return
+		}
+
+	}*/
+
+	exportData := rpc.Export()
+	var dat map[string][]map[string]interface{}
+	err = json.Unmarshal(exportData, &dat)
+	if HasError("/", err, w, response) {
+		return
+	}
+	for store, docs := range dat {
+		b, err := json.Marshal(docs)
+		if HasError("/", err, w, response) {
+			return
+		}
+		hdr := &tar.Header{
+			Name: store + ".json",
+			Mode: 0600,
+			Size: int64(len(b)),
+		}
+		err = tw.WriteHeader(hdr)
+		if HasError("/", err, w, response) {
+			return
+		}
+		_, err = tw.Write(b)
+		if HasError("/", err, w, response) {
+			return
+		}
+	}
+
+	response["complete"] = true
+	response["path"] = fullPath
+	b, _ := json.Marshal(response)
+	if HasError("/", err, w, response) {
+		return
+	}
+	fmt.Fprintf(w, "%s", b)
+	return
+}
+
+// POST upload .tar file of .json files to add stores and records to connected DB
+func ImportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
+	if !rpc.Alive() {
+		http.Redirect(w, r, "/", 303)
+		c.SetFlash("alertError", "Error no connection to a database")
+		return
+	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
+		return
+	}
+
+	r.ParseMultipartForm(32 << 20) // 32 MB
+	tarFile, handler, err := r.FormFile("import")
+	if err != nil || len(handler.Header["Content-Type"]) < 1 {
+		fmt.Printf("dbdbClient >> ImportDB() >> lenfile header: %v", err)
+		c.SetFlash("alertError", "Error uploading file")
+		http.Redirect(w, r, "/"+c.GetPathVar("store")+"/import", 303)
+		return
+	}
+	defer tarFile.Close()
+	// TODO: check type
+
+	tarReader := tar.NewReader(tarFile)
+	tarData := make(map[string][]map[string]interface{})
+	for {
+		hdr, err := tarReader.Next()
+		if err == io.EOF {
+			// end of tar archive
+			break
+		}
+		if err != nil {
+			fmt.Printf("dbdbClient >> ImportDB() >> tarReader.Next(): %v", err)
+			c.SetFlash("alertError", "Error uploading file")
+			http.Redirect(w, r, "/", 303)
+			return
+		}
+
+		buf := new(bytes.Buffer)
+		io.Copy(buf, tarReader)
+		b := buf.Bytes()
+		var st []map[string]interface{}
+		json.Unmarshal(b, &st)
+		tarData[strings.Split(hdr.Name, ".")[0]] = st
+	}
+
+	b, err := json.Marshal(tarData)
+	// TODO: handle err
+	rpc.Import(b)
+
+	/*for store, data := range tarData {
+		rpc.AddStore(store)
+		for _, doc := range data {
+			rpc.Add(store, doc)
+		}
+	}*/
+
+	c.SetFlash("alertSuccess", "Successfully imported database")
+	http.Redirect(w, r, "/", 303)
+	return
+}
+
+func EraseDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
+	if !rpc.Alive() {
+		http.Redirect(w, r, "/", 303)
+		c.SetFlash("alertError", "Error no connection to a database")
+		return
+	}
+	if c.Get("db") == nil || c.Get("db").(string) == "" {
+		http.Redirect(w, r, "/disconnect", 303)
+		return
+	}
+	rpc.ClearAll()
+	c.SetFlash("alertSuccess", "Successfully erased database")
+	http.Redirect(w, r, "/", 303)
+	return
+}
+
+// POST add store to connected DB
 func SaveStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
@@ -204,6 +503,7 @@ func Store(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
+// POST delete store from connected DB
 func DelStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
@@ -223,7 +523,7 @@ func DelStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
-// POST
+// POST save search made on store
 func SaveSearch(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
@@ -250,7 +550,7 @@ func SaveSearch(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
-// GET render empty record for specified store from specified DB
+// GET render empty record for specified store from connected DB
 func NewRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
@@ -272,7 +572,7 @@ func NewRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
-// POST submit new record to specified store from specified DB to add
+// POST add record to specified store in connected DB
 func AddRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
@@ -293,6 +593,7 @@ func AddRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
+// POST upload .json file of records to add to store
 func UploadRecords(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
@@ -341,7 +642,7 @@ func UploadRecords(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
-// GET render specified record from specified store from specified DB
+// GET render specified record from specified store in connected DB
 func Record(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
@@ -364,12 +665,12 @@ func Record(w http.ResponseWriter, r *http.Request, c *web.Context) {
 		"db":        c.Get("db"),
 		"stores":    rpc.GetAllStoreStats(),
 		"storeName": c.GetPathVar("store"),
-		"record":    rpc.Get(c.GetPathVar("store"), GetId(c.GetPathVar("record"))),
+		"record":    record,
 	})
 	return
 }
 
-// POST submit existing record to specified store from specified DB to save
+// POST save record to specified store in connected DB
 func SaveRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
@@ -392,7 +693,7 @@ func SaveRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
-// POST submit existing record id to specified store from specified DB to delete
+// POST delete record from specified store in connected DB
 func DelRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
@@ -409,138 +710,9 @@ func DelRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
-func isConnected(r string) bool {
-	return rpc.HasStore(r)
-}
-
-func ExportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	var response = make(map[string]interface{})
-	if !rpc.Alive() {
-		response["complete"] = true
-		response["path"] = "/"
-		b, _ := json.Marshal(response)
-		fmt.Fprintf(w, "%s", b)
-		return
-	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
-		response["complete"] = true
-		response["path"] = "/disconnect"
-		b, _ := json.Marshal(response)
-		fmt.Fprintf(w, "%s", b)
-		return
-	}
-	response["complete"] = false
-	path := "static/export/"
-	fullPath := path + strings.Replace(c.Get("db").(string), " ", "_", -1) + "_" + time.Now().Format("2006-01-02") + ".tar"
-	if _, err := os.Stat(fullPath); err == nil {
-		response["complete"] = true
-		response["path"] = fullPath
-		b, _ := json.Marshal(response)
-		fmt.Fprintf(w, "%s", b)
-		return
-	}
-	err := os.MkdirAll(path, 0755)
-	if HasError("/", err, w, response) {
-		return
-	}
-	tarFile, err := os.Create(fullPath)
-	if HasError("/", err, w, response) {
-		return
-	}
-	defer tarFile.Close()
-	tw := tar.NewWriter(tarFile)
-	defer tw.Close()
-	for _, stat := range rpc.GetAllStoreStats() {
-		var docs []map[string]interface{}
-		for _, doc := range rpc.GetAll(stat.Name) {
-			docs = append(docs, doc.Data)
-		}
-		b, err := json.Marshal(docs)
-		if HasError("/", err, w, response) {
-			return
-		}
-		hdr := &tar.Header{
-			Name: stat.Name + ".json",
-			Mode: 0600,
-			Size: int64(len(b)),
-		}
-		err = tw.WriteHeader(hdr)
-		if HasError("/", err, w, response) {
-			return
-		}
-		_, err = tw.Write(b)
-		if HasError("/", err, w, response) {
-			return
-		}
-	}
-	response["complete"] = true
-	response["path"] = fullPath
-	b, _ := json.Marshal(response)
-	if HasError("/", err, w, response) {
-		return
-	}
-	fmt.Fprintf(w, "%s", b)
-	return
-}
-
-func ImportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
-	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
-		return
-	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
-		http.Redirect(w, r, "/disconnect", 303)
-		return
-	}
-
-	r.ParseMultipartForm(32 << 20) // 32 MB
-	tarFile, handler, err := r.FormFile("import")
-	if err != nil || len(handler.Header["Content-Type"]) < 1 {
-		fmt.Printf("dbdbClient >> ImportDB() >> lenfile header: %v", err)
-		c.SetFlash("alertError", "Error uploading file")
-		http.Redirect(w, r, "/"+c.GetPathVar("store")+"/import", 303)
-		return
-	}
-	defer tarFile.Close()
-	// check type
-
-	tarReader := tar.NewReader(tarFile)
-	tarData := make(map[string][]map[string]interface{})
-	for {
-		hdr, err := tarReader.Next()
-		if err == io.EOF {
-			// end of tar archive
-			break
-		}
-		if err != nil {
-			fmt.Printf("dbdbClient >> ImportDB() >> tarReader.Next(): %v", err)
-			c.SetFlash("alertError", "Error uploading file")
-			http.Redirect(w, r, "/", 303)
-			return
-		}
-
-		buf := new(bytes.Buffer)
-		io.Copy(buf, tarReader)
-		b := buf.Bytes()
-		var st []map[string]interface{}
-		json.Unmarshal(b, &st)
-		tarData[strings.Split(hdr.Name, ".")[0]] = st
-	}
-
-	for store, data := range tarData {
-		rpc.AddStore(store)
-		for _, doc := range data {
-			rpc.Add(store, doc)
-		}
-	}
-	c.SetFlash("alertSuccess", "Successfully imported database")
-	http.Redirect(w, r, "/", 303)
-	return
-}
-
 // helper functions
 
+// return saved store searches from local DB
 func GetSavedSearches(db, store string) []string {
 	var savedSearch map[string]map[string]string
 	config.GetAs("search", db, &savedSearch)
@@ -554,6 +726,7 @@ func GetSavedSearches(db, store string) []string {
 	return keys
 }
 
+// return single saved search by name from local DB
 func GetSavedSearch(db, store, query string) string {
 	var qry string
 	if query != "" {
@@ -566,6 +739,7 @@ func GetSavedSearch(db, store, query string) string {
 	return qry
 }
 
+// return all saved DB connections from local DB
 func GetSavedDBs() []string {
 	var dbs []string
 	for k := range *config.GetStore("connections") {
@@ -580,6 +754,7 @@ func GetId(s string) uint64 {
 	return id
 }
 
+// decode csv as []map[string]interface{} for importing store
 func DecodeCSV(data io.Reader) ([]map[string]interface{}, error) {
 	fd := csv.NewReader(data)
 	keys, err := fd.Read()
@@ -606,6 +781,7 @@ func DecodeCSV(data io.Reader) ([]map[string]interface{}, error) {
 	return docs, nil
 }
 
+//  sanitize doc for importing to  store
 func SanitizeMap(m *map[string]interface{}) {
 	for k, v := range *m {
 		delete(*m, k)
@@ -614,6 +790,7 @@ func SanitizeMap(m *map[string]interface{}) {
 	runtime.GC()
 }
 
+// check for error and redirect accrodingly
 func HasError(redirect string, err error, w http.ResponseWriter, response map[string]interface{}) bool {
 	if err != nil {
 		fmt.Printf("%v\n", err)

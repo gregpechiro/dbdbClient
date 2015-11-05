@@ -112,13 +112,13 @@
             Must use doc as query object<br>
             Use dat.data to access record information
         </p>
-        <pre id="editor" style="height:400px;">{{ if .query }}{{ .query }}{{ else }}return doc;{{ end }}</pre>
+        <pre id="editor" style="height:350px;">{{ if .query }}{{ .query }}{{ else }}return doc;{{ end }}</pre>
         <div class="form-group">
             <button id="search" class="btn btn-success btn-block">Search</button>
         </div>
         <form id="save-search-form" action="/{{ .storeName }}/search/save" method="post">
             <label>Name</label>
-            <div class="input-group">
+            <div class="input-group form-group">
                 <input id="name" name="name" type="text" class="form-control" placeholder="Name">
                 <input id="search" name="search" type="hidden">
                 <span class="input-group-btn">
@@ -126,6 +126,7 @@
                 </span>
             </div>
         </form>
+        <a id="queryExport" class="btn btn-primary btn-block" disabled="disabled">Export Query</a>
     </div>
 {{ end }}
 
@@ -142,20 +143,23 @@
     <script src="/static/js/store-search.js"></script>
     <script src="/static/js/util.js"></script>
     <script type="text/javascript">
-        function setExport() {
+        function setExport(documents) {
             var docs = [];
-            for (var i = 0; i < store.length; i++) {
-                docs.push(store[i].data);
+            for (var i = 0; i < documents.length; i++) {
+                docs.push(documents[i].data);
             }
-            var blob = new Blob([JSON.stringify(docs)], {type : 'application/json'});
-            $('#export').attr('href', window.URL.createObjectURL(blob));
-            $('#export').attr('download', genFileName(storeName) + '.json');
+            return new Blob([JSON.stringify(docs)], {type : 'application/json'});
+            //$('#export').attr('href', window.URL.createObjectURL(blob));
+            //$('#export').attr('download', genFileName(storeName) + '.json');
         }
 
         $(document).ready(function() {
             if (store.length > 0) {
-                setExport();
+                var blob = setExport(store);
+                $('a#export').attr('href', window.URL.createObjectURL(blob));
+                $('a#export').attr('download', genFileName(storeName) + '.json');
             }
+
             {{ if .query }}
                 query();
             {{ end }}

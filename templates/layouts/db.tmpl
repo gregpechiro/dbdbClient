@@ -16,6 +16,7 @@
 {{ define "nav-right-dd" }}
     <li><a href="#" data-toggle="modal" data-target="#importModal">Import Database</a></li>
     <li><a id="export" href="#">Export Database</a></li>
+    <li><a href="#" data-message="Are you sure you would like to erase the entire database?" data-delete="/erase" class="delete-button text-danger">Erase Database</a></li>
 {{ end }}
 
 {{ define "left-sidebar" }}

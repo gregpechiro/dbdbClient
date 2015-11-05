@@ -9,6 +9,13 @@ function query() {
         $('span#JSmsg').removeClass('hide');
         genResults(paginate(result));
     }
+
+    if (result.length > 0) {
+        var blob = setExport(result);
+        $('a#queryExport').attr('href', window.URL.createObjectURL(blob));
+        $('a#queryExport').attr('download', 'query_' + genFileName(storeName) + '.json');
+        $('a#queryExport').removeAttr('disabled');
+    }
 }
 
 $(document).ready(function() {
