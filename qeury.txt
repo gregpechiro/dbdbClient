@@ -6,17 +6,19 @@ SORTASC
 SORTDESC
 LIMIT
 
-QUERY user WHERE email = 'gregpechiro@yahoo.com', password = 'skjdnkjnsdjnsd', active = true
+* QUERY user WHERE email = 'gregpechiro@yahoo.com', password = 'skjdnkjnsdjnsd', active = true
 
 QUERY user WHERE email = `gregpechiro@yahoo.com`, DOCID ^ 5
-
-QUERY video WHERE SORT DESC DOCID, LIMIT = 10
 
 QUERY user WHERE DOCID < 100
 
 QUERY user WHERE active = true SORTDESC DOCID
 
 QUERY user WHERE DOCCREATED > `10-27-2014`
+
+QUERY video WHERE active = true, LIMIT 10, SORTDESC DOCID
+
+QUERY video WHERE LIMIT 10, SORTDESC DOCID
 
 
 
@@ -27,3 +29,14 @@ var LIMIT = Q[KEYWORD, WS, IDENT]
 ID
 CREATED
 MODIFIED
+
+
+
+type QueryStatment struct {
+    Store string
+    Set []QuerySet
+}
+
+type QuerySet struct {
+    Field, Comparitor, Value string
+}

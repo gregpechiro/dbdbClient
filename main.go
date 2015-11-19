@@ -18,8 +18,8 @@ import (
 
 	"github.com/cagnosolutions/dbdb"
 	"github.com/cagnosolutions/mockdb"
-	"github.com/cagnosolutions/web"
-	"github.com/cagnosolutions/web/tmpl"
+	"github.com/cagnosolutions/webc"
+	"github.com/cagnosolutions/webc/tmpl"
 )
 
 var rpc = dbdb.NewClient()
@@ -27,7 +27,7 @@ var ts = tmpl.NewTemplateStore(true)
 var config = mockdb.NewMockDB("config.json", 5)
 
 func main() {
-	mux := web.NewMux("CTIXID", (web.HOUR / 2))
+	mux := webc.NewMux("CTIXID", (webc.HOUR / 2))
 
 	// db managment
 	mux.Get("/test", Test)
@@ -63,7 +63,7 @@ func main() {
 }
 
 // GET render all saved DBs or show currently cinnected DB
-func Root(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func Root(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	msgk, msgv := c.GetFlash()
 
 	// Not connected display all DBs
@@ -89,7 +89,7 @@ func Root(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // POST add new db connection
-func AddConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func AddConnection(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	var connection map[string]string
 	config.GetAs("connections", r.FormValue("name"), &connection)
 	if connection == nil {
@@ -105,7 +105,7 @@ func AddConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // POST update existing DB connection
-func SaveConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func SaveConnection(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	var connection map[string]string
 	ok := config.GetAs("connections", r.FormValue("name"), &connection)
 	if r.FormValue("name") != r.FormValue("oldName") {
@@ -128,7 +128,7 @@ func SaveConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // POST delete saved DB connection
-func DelConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func DelConnection(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	config.Del("connections", c.GetPathVar("db"))
 	c.SetFlash("alertSuccess", "Successfully deleted connection")
 	http.Redirect(w, r, "/", 303)
@@ -136,7 +136,7 @@ func DelConnection(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // GET connect to DB
-func Connect(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func Connect(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	var connection map[string]string
 	if config.GetAs("connections", c.GetPathVar("db"), &connection) {
 		if address, ok := connection["address"]; ok && address != "" {
@@ -154,14 +154,14 @@ func Connect(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // GET disconnect from DB
-func Disconnect(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func Disconnect(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	rpc.Disconnect()
 	c.SetFlash("alertSuccess", "Disconnected")
 	http.Redirect(w, r, "/", 303)
 	return
 }
 
-func Test(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func Test(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	var response = make(map[string]interface{})
 	if !rpc.Alive() {
 		response["complete"] = true
@@ -271,7 +271,7 @@ func Test(w http.ResponseWriter, r *http.Request, c *web.Context) {
 
 // GET create .tar file from connected DB of all its stores
 // and records and return download link
-func ExportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func ExportDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	var response = make(map[string]interface{})
 	if !rpc.Alive() {
 		response["complete"] = true
@@ -376,7 +376,7 @@ func ExportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // POST upload .tar file of .json files to add stores and records to connected DB
-func ImportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func ImportDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
@@ -396,7 +396,11 @@ func ImportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
 		return
 	}
 	defer tarFile.Close()
-	// TODO: check type
+
+	if handler.Header["Content-Type"][0] != "application/z-tar" {
+		c.SetFlash("alertError", "Incorrect file type")
+		http.Redirect(w, r, "/", 303)
+	}
 
 	tarReader := tar.NewReader(tarFile)
 	tarData := make(map[string][]map[string]interface{})
@@ -422,7 +426,10 @@ func ImportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	}
 
 	b, err := json.Marshal(tarData)
-	// TODO: handle err
+	if err != nil {
+		c.SetFlash("alertError", "Error reading file")
+		http.Redirect(w, r, "/", 303)
+	}
 	rpc.Import(b)
 
 	/*for store, data := range tarData {
@@ -437,7 +444,7 @@ func ImportDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
 	return
 }
 
-func EraseDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func EraseDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
@@ -454,7 +461,7 @@ func EraseDB(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // POST add store to connected DB
-func SaveStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func SaveStore(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
@@ -475,7 +482,7 @@ func SaveStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // GET render specified store from specified DB
-func Store(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func Store(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
@@ -504,7 +511,7 @@ func Store(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // POST delete store from connected DB
-func DelStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func DelStore(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
@@ -524,7 +531,7 @@ func DelStore(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // POST save search made on store
-func SaveSearch(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func SaveSearch(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
@@ -551,7 +558,7 @@ func SaveSearch(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // GET render empty record for specified store from connected DB
-func NewRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func NewRecord(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
@@ -573,7 +580,7 @@ func NewRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // POST add record to specified store in connected DB
-func AddRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func AddRecord(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
@@ -594,7 +601,7 @@ func AddRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // POST upload .json file of records to add to store
-func UploadRecords(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func UploadRecords(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
@@ -643,7 +650,7 @@ func UploadRecords(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // GET render specified record from specified store in connected DB
-func Record(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func Record(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
@@ -671,7 +678,7 @@ func Record(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // POST save record to specified store in connected DB
-func SaveRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func SaveRecord(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
@@ -694,7 +701,7 @@ func SaveRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
 }
 
 // POST delete record from specified store in connected DB
-func DelRecord(w http.ResponseWriter, r *http.Request, c *web.Context) {
+func DelRecord(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	if !rpc.Alive() {
 		http.Redirect(w, r, "/", 303)
 		c.SetFlash("alertError", "Error no connection to a database")
