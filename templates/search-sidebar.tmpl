@@ -1,0 +1,43 @@
+<div class="col-lg-offset-9 col-lg-3 sidebar">
+    <p class="text-center">
+        Equals Search
+    </p>
+    <pre id="search" style="height:400px;">{{ if .query }}{{ .query }}{{ else }}{
+"key": "val"
+}{{ end }}</pre>
+    <div class="form-group">
+        <button id="search" class="btn btn-block btn-success">Search</button>
+    </div>
+    {{ if .query }}
+        <div class="form-group">
+            <a href="/{{ .storeName }}" class="btn btn-block btn-primary">View All</a>
+        </div>
+    {{ end }}
+    <div class="form-group">
+        <a href="/{{ .storeName }}/search" class="btn btn-block btn-default">Complex Search</a>
+    </div>
+    <form id="search-form" class="hide" action="/{{ .storeName }}/search" method="post">
+        <input id="query" type="hidden" name="query">
+    </form>
+</div>
+<script>
+    var search = ace.edit("search");
+    search.session.setMode("ace/mode/json");
+    search.renderer.setShowGutter(true);
+    search.setHighlightActiveLine(true);
+    search.setReadOnly(false);
+    search.setTheme("ace/theme/terminal");
+    search.setDisplayIndentGuides(true);
+    document.querySelector('button#search').onclick = function() {
+        document.querySelector('input#query').value = search.getValue();
+        document.querySelector('form#search-form').submit();
+    }
+    search.getSession().on("changeAnnotation", function() {
+        var annot = search.getSession().getAnnotations();
+        if (annot.length > 0) {
+            document.querySelector('button#search').disabled = true;
+        } else {
+            document.querySelector('button#search').disabled = false;
+        }
+    });
+</script>

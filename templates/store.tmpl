@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		{{ template "head.tmpl" . }}
+        <style>input.uploader{position:absolute;left:-9999px;}label.uploader{cursor:pointer;}</style>
+        <style>
+            .pagination {
+                margin: 0;
+            }
+        </style>
+		<title>DBUI</title>
+	</head>
+	<body>
+
+		<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+			<div class="container-fluid">
+				<div class="navbar-header">
+					<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-navbar-collapse-1">
+						<span class="sr-only">Toggle navigation</span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+					</button>
+				</div>
+
+				{{ if .alert }}
+					<span id="msg" class="navbar-center text-info">
+						{{ .alert }}
+						<button style="z-index: 100" class="btn-xs btn-info" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+					</span>
+				{{ else if .alertError }}
+					<span id="msg" class="navbar-center text-danger">
+						{{ .alertError }}
+						<button style="z-index: 100" class="btn-xs btn-danger" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+					</span>
+				{{ else if .alertSuccess }}
+					<span id="msg" class="navbar-center text-success">
+						{{ .alertSuccess }}
+						<button style="z-index: 100" class="btn-xs btn-success" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+					</span>
+				{{ end }}
+
+				<span id="JSmsg" class="navbar-center text-primary hide">
+					<p id="msgContent"></p>
+				</span>
+
+				<ul class="nav navbar-nav navbar-left">
+					<li class="hidden-xs">
+						<ol class="breadcrumb">
+                            <li><a href="/">{{ .db | title }}</a></li>
+                            <li class="active">{{ .storeName }}</li>
+						</ol>
+					</li>
+				</ul>
+
+				<span id="delete-msg" class="navbar-center text-danger hide clearfix">
+					<form id="deleteForm" class="form-inline" method="post">
+						<label id="message">This is the message area&nbsp;&nbsp;&nbsp;</label>
+						<button id="delete" class="btn btn-danger btn-xs">Yes</button>
+						<a id="deleteCancel" class="btn btn-default btn-xs">No</a>
+					</form>
+				</span>
+
+				<div class="collapse navbar-collapse" id="bs-navbar-collapse-1">
+					<ul class="nav navbar-nav navbar-right">
+                        {{ if .savedSearch }}
+                            <li class="dropdown">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Saved Searches<span class="caret"></span></a>
+                                <ul class="dropdown-menu">
+                                    {{ $db := .db}}
+                                    {{ $storeName := .storeName }}
+                                    {{ range $search := .savedSearch }}
+                                        <li><a href="/{{ $storeName }}?query={{ $search }}">{{ $search | title }}</a></li>
+                                    {{ end }}
+                                </ul>
+                            </li>
+                        {{ end }}
+						<li class="dropdown">
+				        	<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Actions<span class="caret"></span></a>
+				        	<ul class="dropdown-menu">
+                                <li><a href="/{{ .storeName }}/new">New Record</a></li>
+                                <li><a href="#" data-toggle="modal" data-target="#importModal">Import Store</a></li>
+                                <li><a href="#" id="export" download="" >Export Store</a></li>
+                                <li><a href="#" data-message="Are you sure you would like to delete this store?" data-delete="/{{ .storeName }}" class="delete-button text-danger">Delete Store</a></li>
+				            	<li role="separator" class="divider"></li>
+				            	<li><a href=/disconnect>Disconnect</a></li>
+				        	</ul>
+				    	</li>
+					</ul>
+				</div>
+			</div>
+		</nav>
+
+		<div class="container-fluid">
+	        <div class="row">
+				<div id="content">
+	            	<div class="col-lg-2 sidebar">
+	                	<ul class="nav nav-sidebar">
+	                    	{{ template "all-store-sidebar.tmpl" . }}
+	                	</ul>
+	            	</div>
+
+                    <br>
+                    <div class="col-lg-offset-2 col-lg-6">
+                        <div class="row">
+                            <div class="col-lg-12">
+                                <label>Pages</label>
+                                <label class="pull-right">Pages Size</label>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-lg-12">
+                                <ul id="paginator" class="pagination pagination-sm">
+                                </ul>
+                                <div class="pull-right">
+                                    <select id="pageSize" class="form-control input-sm">
+                                        <option value="10">10</option>
+                                        <option value="20">20</option>
+                                        <option value="30">30</option>
+                                        <option value="40">40</option>
+                                        <option value="50">50</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <br>
+                        <div class="row">
+                            <div class="col-lg-12">
+                                <div id=results>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal fade" id="importModal" tabindex="-1">
+                        <div class="modal-dialog modal-sm">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                    <h4 class="modal-title" id="myModalLabel">Upload File</h4>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-lg-12 text-center">
+                                            <div id="fileError" class="text-danger hide">
+                    					        <p id="fileMessage" class="text-danger"></p>
+                    				        </div>
+                                        </div>
+                                    </div>
+                                    <form id="uploader" action="/{{ .storeName }}/import" method="post" enctype="multipart/form-data">
+                            			<div class="form-group">
+                            				<label class="btn btn-default btn-block uploader" for="data">
+                            					Select File
+                            				</label>
+                            				<input class="uploader" id="data" type="file" name="data" required="true">
+                            			</div>
+                            			<button class="btn btn-success uploader btn-block" id="upload" type="submit"
+                            					disabled="true">
+                            				Upload
+                            			</button>
+                            		</form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-offset-8 col-lg-4 sidebar">
+                        <p class="text-center">
+                            Must use doc as query object<br>
+                            Use doc.data to access record information
+                        </p>
+                        <pre id="editor" style="height:350px;">{{ if .query }}{{ .query }}{{ else }}return doc;{{ end }}</pre>
+                        <div class="form-group">
+                            <button id="search" class="btn btn-success btn-block">Search</button>
+                        </div>
+                        <form id="save-search-form" action="/{{ .storeName }}/search/save" method="post">
+                            <label>Name</label>
+                            <div class="input-group form-group">
+                                <input id="name" name="name" type="text" class="form-control" placeholder="Name">
+                                <input id="search" name="search" type="hidden">
+                                <span class="input-group-btn">
+                                    <button id="save-search" class="btn btn-default" type="button">Save Search</button>
+                                </span>
+                            </div>
+                        </form>
+                        <a id="queryExport" class="btn btn-primary btn-block" disabled="disabled">Export Query</a>
+                    </div>
+
+				</div>
+				<div id="uploadSpinner" class="text-center hide">
+					<br><br><br><br><br>
+					<p class="lead">
+						<strong>Uploading your file...</strong><br/>
+					</p>
+					<i class="fa fa-5x fa-circle-o-notch fa-spin"></i>
+					<p class="lead">One moment please.</p>
+				</div>
+			</div>
+		</div>
+		<div>
+			{{ template "scripts.tmpl" . }}
+            <script type="text/javascript">
+                var store = {{ if .store }}JSON.parse({{ .store | pretty }}){{ else }}[]{{ end }}
+                var result = {{ if .store }}JSON.parse({{ .store | pretty }}){{ else }}[]{{ end }}
+                var storeName = '{{ .storeName }}';
+                var editor = ace.edit("editor");
+            </script>
+            <script src="/static/js/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
+            <script src="/static/js/paginator.js"></script>
+            <script src="/static/js/upload.js"></script>
+            <script src="/static/js/store-search.js"></script>
+            <script src="/static/js/util.js"></script>
+            <script type="text/javascript">
+                function setExport(documents) {
+                    var docs = [];
+                    for (var i = 0; i < documents.length; i++) {
+                        docs.push(documents[i].data);
+                    }
+                    return new Blob([JSON.stringify(docs)], {type : 'application/json'});
+                    //$('#export').attr('href', window.URL.createObjectURL(blob));
+                    //$('#export').attr('download', genFileName(storeName) + '.json');
+                }
+
+                $(document).ready(function() {
+                    if (store.length > 0) {
+                        var blob = setExport(store);
+                        $('a#export').attr('href', window.URL.createObjectURL(blob));
+                        $('a#export').attr('download', genFileName(storeName) + '.json');
+                    }
+
+                    {{ if .query }}
+                        query();
+                    {{ end }}
+
+                    uploader.defaultText = "Select File";
+                    uploader.fileTypes = ["application/json", "text/csv"];
+                    uploader.fileTypeErrorMsg = "Incorrect file type. All files must be JSON or CSV";
+                    uploader.maxSize =  (1024 * 1024 * 4);
+                    uploader.maxSizeMsg = "Files cannot be larger than 4MB";
+                });
+            </script>
+		</div>
+	</body>
+</html>

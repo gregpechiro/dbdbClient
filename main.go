@@ -18,100 +18,66 @@ import (
 
 	"github.com/cagnosolutions/dbdb"
 	"github.com/cagnosolutions/mockdb"
-	"github.com/cagnosolutions/webc"
+	"github.com/cagnosolutions/web"
 	"github.com/cagnosolutions/webc/tmpl"
 )
 
 var rpc = dbdb.NewClient()
-var ts = tmpl.NewTemplateStore(true)
+var ts = web.NewTmplCache()
 var config = mockdb.NewMockDB("config.json", 5)
 
 func main() {
-	mux := webc.NewMux("CTIXID", (webc.HOUR / 2))
-
-	// db managment
-	mux.Get("/test", Test)
-	mux.Get("/", Root)
-	mux.Post("/connection", AddConnection)
-	mux.Post("/connection/save", SaveConnection)
-	mux.Post("/connection/:db/del", DelConnection)
-
-	mux.Get("/connect/:db", Connect)
-	mux.Get("/disconnect", Disconnect)
-
-	mux.Get("/export", ExportDB)
-	mux.Post("/import", ImportDB)
-	mux.Post("/erase", EraseDB)
-
-	// store managment
-	mux.Post("/new", SaveStore)
-	mux.Get("/:store", Store)
-	mux.Post("/:store", DelStore)
-
-	// store search
-	mux.Post("/:store/search/save", SaveSearch)
-
-	// record managment
-	mux.Get("/:store/new", NewRecord)
-	mux.Post("/:store/add", AddRecord)
-	mux.Post("/:store/import", UploadRecords)
-	mux.Get("/:store/:record", Record)
-	mux.Post("/:store/:record", SaveRecord)
-	mux.Post("/:store/:record/del", DelRecord)
-
-	mux.Serve(":8080")
+	mux := web.NewMux()
+	mux.AddRoutes(root, addConnection, saveConnection, delConnection, connect, disconnect)
+	mux.AddRoutes(exportDB, importDB, eraseDB, saveStore, getStore, delStore, saveQuery)
+	mux.AddRoutes(newRecord, addRecord, importStore, getRecord, saveRecord, delRecord)
+	log.Println(http.ListenAndServe(":8080", mux))
 }
 
-// GET render all saved DBs or show currently cinnected DB
-func Root(w http.ResponseWriter, r *http.Request, c *webc.Context) {
-	msgk, msgv := c.GetFlash()
-
+var root = web.Route{"GET", "/", func(w http.ResponseWriter, r *http.Request) {
 	// Not connected display all DBs
 	if !rpc.Alive() {
-		ts.Render(w, "index.tmpl", tmpl.Model{
-			msgk:    msgv,
+		ts.Render(w, r, "index.tmpl", tmpl.Model{
 			"dbs":   GetSavedDBs(),
 			"conns": config.GetStore("connections"),
 		})
 		return
 	}
 
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	db := web.Get(r, "db")
+
+	if db == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
-	ts.Render(w, "db.tmpl", tmpl.Model{
-		msgk:     msgv,
-		"db":     c.Get("db"),
+	ts.Render(w, r, "db.tmpl", tmpl.Model{
+		"db":     db,
 		"stores": rpc.GetAllStoreStats(),
 	})
 	return
-}
+}}
 
 // POST add new db connection
-func AddConnection(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var addConnection = web.Route{"POST", "/connection", func(w http.ResponseWriter, r *http.Request) {
 	var connection map[string]string
 	config.GetAs("connections", r.FormValue("name"), &connection)
 	if connection == nil {
-		println(3)
 		connection = make(map[string]string)
 	}
 	connection["address"] = r.FormValue("address")
 	connection["token"] = r.FormValue("token")
 	config.Set("connections", r.FormValue("name"), connection)
-	c.SetFlash("alertSuccess", "Successfully added connection")
-	http.Redirect(w, r, "/", 303)
+	web.SetSuccessRedirect(w, r, "/", "Successfully added connection")
 	return
-}
+}}
 
 // POST update existing DB connection
-func SaveConnection(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var saveConnection = web.Route{"POST", "/connection/save", func(w http.ResponseWriter, r *http.Request) {
 	var connection map[string]string
 	ok := config.GetAs("connections", r.FormValue("name"), &connection)
 	if r.FormValue("name") != r.FormValue("oldName") {
 		if ok {
-			c.SetFlash("alertError", "Error connection name already exists")
-			http.Redirect(w, r, "/", 303)
+			web.SetErrorRedirect(w, r, "/", "Error connection name already exists")
 			return
 		}
 		config.Del("connections", r.FormValue("oldName"))
@@ -122,156 +88,44 @@ func SaveConnection(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	connection["address"] = r.FormValue("address")
 	connection["token"] = r.FormValue("token")
 	config.Set("connections", r.FormValue("name"), connection)
-	c.SetFlash("alertSuccess", "Successfully updated connection")
-	http.Redirect(w, r, "/", 303)
+	web.SetSuccessRedirect(w, r, "/", "Successfully updated connection")
 	return
-}
+}}
 
 // POST delete saved DB connection
-func DelConnection(w http.ResponseWriter, r *http.Request, c *webc.Context) {
-	config.Del("connections", c.GetPathVar("db"))
-	c.SetFlash("alertSuccess", "Successfully deleted connection")
-	http.Redirect(w, r, "/", 303)
+var delConnection = web.Route{"POST", "/connection/:db/del", func(w http.ResponseWriter, r *http.Request) {
+	config.Del("connections", r.FormValue(":db"))
+	web.SetSuccessRedirect(w, r, "/", "Successfully deleted connection")
 	return
-}
+}}
 
 // GET connect to DB
-func Connect(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var connect = web.Route{"GET", "/connect/:db", func(w http.ResponseWriter, r *http.Request) {
 	var connection map[string]string
-	if config.GetAs("connections", c.GetPathVar("db"), &connection) {
+	db := r.FormValue(":db")
+	if config.GetAs("connections", db, &connection) {
 		if address, ok := connection["address"]; ok && address != "" {
 			if rpc.Connect(address, connection["token"]) {
-				c.SetFlash("alertSuccess", "Successfully connected to database")
-				c.Set("db", c.GetPathVar("db"))
-				http.Redirect(w, r, "/", 303)
+				web.Put(w, "db", db)
+				web.SetSuccessRedirect(w, r, "/", "Successfully connected to database")
 				return
 			}
 		}
 	}
-	c.SetFlash("alertError", "Error connecting to the database")
-	http.Redirect(w, r, "/", 303)
+	web.SetErrorRedirect(w, r, "/", "Error connecting to the database")
 	return
-}
+}}
 
 // GET disconnect from DB
-func Disconnect(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var disconnect = web.Route{"GET", "/disconnect", func(w http.ResponseWriter, r *http.Request) {
 	rpc.Disconnect()
-	c.SetFlash("alertSuccess", "Disconnected")
-	http.Redirect(w, r, "/", 303)
+	web.SetSuccessRedirect(w, r, "/", "Disconnected")
 	return
-}
-
-func Test(w http.ResponseWriter, r *http.Request, c *webc.Context) {
-	var response = make(map[string]interface{})
-	if !rpc.Alive() {
-		response["complete"] = true
-		response["path"] = "/"
-		b, _ := json.Marshal(response)
-		fmt.Fprintf(w, "%s", b)
-		return
-	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
-		response["complete"] = true
-		response["path"] = "/disconnect"
-		b, _ := json.Marshal(response)
-		fmt.Fprintf(w, "%s", b)
-		return
-	}
-	exportData := rpc.Export()
-	var dat map[string][]map[string]interface{}
-	json.Unmarshal([]byte(exportData), &dat)
-	fmt.Fprintf(w, "%+#v", dat)
-	return
-	/*
-		response["complete"] = false
-		path := "static/export/"
-		fullPath := path + strings.Replace(c.Get("db").(string), " ", "_", -1) + "_" + time.Now().Format("2006-01-02") + ".json"
-
-		if _, err := os.Stat(fullPath); err == nil {
-			response["complete"] = true
-			response["path"] = fullPath
-			b, _ := json.Marshal(response)
-			fmt.Fprintf(w, "%s", b)
-			return
-		}
-
-		err := os.MkdirAll(path, 0755)
-		if HasError("/", err, w, response) {
-			return
-		}
-		tarFile, err := os.Create(fullPath)
-		if HasError("/", err, w, response) {
-			return
-		}
-
-		defer tarFile.Close()
-		tw := tar.NewWriter(tarFile)
-		defer tw.Close()
-
-		for _, stat := range rpc.GetAllStoreStats() {
-			var docs []map[string]interface{}
-			for _, doc := range rpc.GetAll(stat.Name) {
-				docs = append(docs, doc.Data)
-			}
-
-			b, err := json.Marshal(docs)
-			if HasError("/", err, w, response) {
-				return
-			}
-			hdr := &tar.Header{
-				Name: stat.Name + ".json",
-				Mode: 0600,
-				Size: int64(len(b)),
-			}
-			err = tw.WriteHeader(hdr)
-			if HasError("/", err, w, response) {
-				return
-			}
-			_, err = tw.Write(b)
-			if HasError("/", err, w, response) {
-				return
-			}
-
-		}
-		exportData := rpc.Export()
-		var dat map[string][]map[string]interface{}
-		err = json.Unmarshal([]byte(exportData), &dat)
-		if HasError("/", err, w, response) {
-			return
-		}
-		for store, docs := range dat {
-			b, err := json.Marshal(docs)
-			if HasError("/", err, w, response) {
-				return
-			}
-			hdr := &tar.Header{
-				Name: store + ".json",
-				Mode: 0600,
-				Size: int64(len(b)),
-			}
-			err = tw.WriteHeader(hdr)
-			if HasError("/", err, w, response) {
-				return
-			}
-			_, err = tw.Write(b)
-			if HasError("/", err, w, response) {
-				return
-			}
-		}
-
-		response["complete"] = true
-		response["path"] = fullPath
-		b, _ := json.Marshal(response)
-		if HasError("/", err, w, response) {
-			return
-		}
-		fmt.Fprintf(w, "%s", b)
-		return*/
-}
+}}
 
 // GET create .tar file from connected DB of all its stores
 // and records and return download link
-func ExportDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var exportDB = web.Route{"GET", "/export", func(w http.ResponseWriter, r *http.Request) {
 	var response = make(map[string]interface{})
 	if !rpc.Alive() {
 		response["complete"] = true
@@ -280,7 +134,8 @@ func ExportDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 		fmt.Fprintf(w, "%s", b)
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	db := web.Get(r, "db")
+	if db == "" {
 		response["complete"] = true
 		response["path"] = "/disconnect"
 		b, _ := json.Marshal(response)
@@ -289,22 +144,11 @@ func ExportDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	}
 	response["complete"] = false
 	path := "static/export/"
-	fullPath := path + strings.Replace(c.Get("db").(string), " ", "_", -1) + "_" + time.Now().Format("2006-01-02") + ".tar"
-
-	/*if _, err := os.Stat(fullPath); err == nil {
-		response["complete"] = true
-		response["path"] = fullPath
-		b, _ := json.Marshal(response)
-		fmt.Fprintf(w, "%s", b)
-		return
-	}*/
-
+	fullPath := path + strings.Replace(db, " ", "_", -1) + "_" + time.Now().Format("2006-01-02") + ".tar"
 	err := os.MkdirAll(path, 0755)
 	if HasError("/", err, w, response) {
 		return
 	}
-
-	//tarFile, err := os.OpenFile(fullPath, os.O_TRUNC|os.O_WRONLY, 0644)
 	tarFile, err := os.Create(fullPath)
 	if HasError("/", err, w, response) {
 		return
@@ -312,33 +156,6 @@ func ExportDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	defer tarFile.Close()
 	tw := tar.NewWriter(tarFile)
 	defer tw.Close()
-
-	/*for _, stat := range rpc.GetAllStoreStats() {
-		var docs []map[string]interface{}
-		for _, doc := range rpc.GetAll(stat.Name) {
-			docs = append(docs, doc.Data)
-		}
-
-		b, err := json.Marshal(docs)
-		if HasError("/", err, w, response) {
-			return
-		}
-		hdr := &tar.Header{
-			Name: stat.Name + ".json",
-			Mode: 0600,
-			Size: int64(len(b)),
-		}
-		err = tw.WriteHeader(hdr)
-		if HasError("/", err, w, response) {
-			return
-		}
-		_, err = tw.Write(b)
-		if HasError("/", err, w, response) {
-			return
-		}
-
-	}*/
-
 	exportData := rpc.Export()
 	var dat map[string][]map[string]interface{}
 	err = json.Unmarshal(exportData, &dat)
@@ -373,16 +190,15 @@ func ExportDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	}
 	fmt.Fprintf(w, "%s", b)
 	return
-}
+}}
 
 // POST upload .tar file of .json files to add stores and records to connected DB
-func ImportDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var importDB = web.Route{"POST", "/import", func(w http.ResponseWriter, r *http.Request) {
 	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	if web.Get(r, "db") == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
@@ -391,15 +207,14 @@ func ImportDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	tarFile, handler, err := r.FormFile("import")
 	if err != nil || len(handler.Header["Content-Type"]) < 1 {
 		fmt.Printf("dbdbClient >> ImportDB() >> lenfile header: %v", err)
-		c.SetFlash("alertError", "Error uploading file")
-		http.Redirect(w, r, "/"+c.GetPathVar("store")+"/import", 303)
+		web.SetErrorRedirect(w, r, "/import", "Error Uploading file")
 		return
 	}
 	defer tarFile.Close()
 
 	if handler.Header["Content-Type"][0] != "application/z-tar" {
-		c.SetFlash("alertError", "Incorrect file type")
-		http.Redirect(w, r, "/", 303)
+		web.SetErrorRedirect(w, r, "/", "Incorrect file type")
+		return
 	}
 
 	tarReader := tar.NewReader(tarFile)
@@ -412,8 +227,7 @@ func ImportDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 		}
 		if err != nil {
 			fmt.Printf("dbdbClient >> ImportDB() >> tarReader.Next(): %v", err)
-			c.SetFlash("alertError", "Error uploading file")
-			http.Redirect(w, r, "/", 303)
+			web.SetErrorRedirect(w, r, "/", "Error uploading file")
 			return
 		}
 
@@ -427,196 +241,178 @@ func ImportDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 
 	b, err := json.Marshal(tarData)
 	if err != nil {
-		c.SetFlash("alertError", "Error reading file")
-		http.Redirect(w, r, "/", 303)
-	}
-	rpc.Import(b)
-
-	/*for store, data := range tarData {
-		rpc.AddStore(store)
-		for _, doc := range data {
-			rpc.Add(store, doc)
-		}
-	}*/
-
-	c.SetFlash("alertSuccess", "Successfully imported database")
-	http.Redirect(w, r, "/", 303)
-	return
-}
-
-func EraseDB(w http.ResponseWriter, r *http.Request, c *webc.Context) {
-	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+		web.SetErrorRedirect(w, r, "/", "Error reading file")
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	rpc.Import(b)
+	web.SetSuccessRedirect(w, r, "/", "Successfully imported database")
+	return
+}}
+
+var eraseDB = web.Route{"POST", "/erase", func(w http.ResponseWriter, r *http.Request) {
+	if !rpc.Alive() {
+		http.Redirect(w, r, "/", 303)
+		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
+		return
+	}
+	if web.Get(r, "db") == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
 	rpc.ClearAll()
-	c.SetFlash("alertSuccess", "Successfully erased database")
-	http.Redirect(w, r, "/", 303)
+	web.SetSuccessRedirect(w, r, "/", "Successfully erased database")
 	return
-}
+}}
 
 // POST add store to connected DB
-func SaveStore(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var saveStore = web.Route{"GET", "/new", func(w http.ResponseWriter, r *http.Request) {
 	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	if web.Get(r, "db") == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
 	name := r.FormValue("name")
 	if ok := rpc.AddStore(name); ok {
-		c.SetFlash("alertSuccess", "Successfully saved store")
-	} else {
-		c.SetFlash("alertError", "Error saving store")
+		web.SetSuccessRedirect(w, r, "/", "Successfully saved store")
+		return
 	}
-	http.Redirect(w, r, "/", 303)
+	web.SetErrorRedirect(w, r, "/", "Error saving store")
 	return
-}
+}}
 
 // GET render specified store from specified DB
-func Store(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var getStore = web.Route{"GET", "/:store", func(w http.ResponseWriter, r *http.Request) {
 	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	db := web.Get(r, "db")
+	if db == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
-	msgk, msgv := c.GetFlash()
-	if !rpc.HasStore(c.GetPathVar("store")) {
-		c.SetFlash("alertError", "Invalid store")
-		http.Redirect(w, r, fmt.Sprintf("/%s", c.GetPathVar("db")), 303)
+	store := r.FormValue(":store")
+	if !rpc.HasStore(store) {
+		web.SetErrorRedirect(w, r, "/"+store, "Invalid store")
 		return
 	}
-	ts.Render(w, "store.tmpl", tmpl.Model{
-		msgk:          msgv,
-		"savedSearch": GetSavedSearches(c.Get("db").(string), c.GetPathVar("store")),
-		"db":          c.Get("db"),
+	ts.Render(w, r, "store.tmpl", tmpl.Model{
+		"savedSearch": GetSavedSearches(db, store),
+		"db":          db,
 		"stores":      rpc.GetAllStoreStats(),
-		"store":       rpc.GetAll(c.GetPathVar("store")),
-		"storeName":   c.GetPathVar("store"),
-		"query":       GetSavedSearch(c.Get("db").(string), c.GetPathVar("store"), r.FormValue("query")),
+		"store":       rpc.GetAll(store),
+		"storeName":   store,
+		"query":       GetSavedSearch(db, store, r.FormValue("query")),
 	})
 	return
-}
+}}
 
 // POST delete store from connected DB
-func DelStore(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var delStore = web.Route{"POST", "/:store", func(w http.ResponseWriter, r *http.Request) {
 	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	if web.Get(r, "db") == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
-	if !rpc.DelStore(c.GetPathVar("store")) {
-		c.SetFlash("alertError", "Error deleteing store")
-	} else {
-		c.SetFlash("alertSuccess", "Successfully deleted store")
+	if !rpc.DelStore(r.FormValue("store")) {
+		web.SetErrorRedirect(w, r, "/", "Error deleting store")
+		return
 	}
-	http.Redirect(w, r, "/", 303)
+	web.SetSuccessRedirect(w, r, "/", "Successfully deleted store")
 	return
-}
+}}
 
 // POST save search made on store
-func SaveSearch(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var saveQuery = web.Route{"POST", "/:store/search/save", func(w http.ResponseWriter, r *http.Request) {
 	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	db := web.Get(r, "db")
+	if db == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
+	store := r.FormValue(":store")
 	var savedSearch map[string]map[string]string
 
-	config.GetAs("search", c.Get("db").(string), &savedSearch)
+	config.GetAs("search", db, &savedSearch)
 	if savedSearch == nil {
 		savedSearch = make(map[string]map[string]string)
 	}
-	if savedSearch[c.GetPathVar("store")] == nil {
-		savedSearch[c.GetPathVar("store")] = make(map[string]string)
+	if savedSearch[store] == nil {
+		savedSearch[store] = make(map[string]string)
 	}
-	savedSearch[c.GetPathVar("store")][r.FormValue("name")] = r.FormValue("search")
-	config.Set("search", c.Get("db").(string), savedSearch)
-	c.SetFlash("alertSuccess", "Successfully saved search")
-	http.Redirect(w, r, fmt.Sprintf("/%s", c.GetPathVar("store")), 303)
+	savedSearch[store][r.FormValue("name")] = r.FormValue("search")
+	config.Set("search", db, savedSearch)
+	web.SetSuccessRedirect(w, r, "/"+store, "Successfully saved search")
 	return
-}
+}}
 
 // GET render empty record for specified store from connected DB
-func NewRecord(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var newRecord = web.Route{"GET", "/:store/new", func(w http.ResponseWriter, r *http.Request) {
 	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	db := web.Get(r, "db")
+	if db == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
-	msgk, msgv := c.GetFlash()
-	ts.Render(w, "record.tmpl", tmpl.Model{
-		msgk:        msgv,
-		"db":        c.Get("db"),
+	store := r.FormValue(":store")
+	ts.Render(w, r, "record.tmpl", tmpl.Model{
+		"db":        db,
 		"stores":    rpc.GetAllStoreStats(),
-		"storeName": c.GetPathVar("store"),
+		"storeName": store,
 		"record":    "",
 	})
 	return
-}
+}}
 
 // POST add record to specified store in connected DB
-func AddRecord(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var addRecord = web.Route{"POST", "/:store/add", func(w http.ResponseWriter, r *http.Request) {
 	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	db := web.Get(r, "db")
+	if db == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
+	store := r.FormValue(":store")
 	record := r.FormValue("record")
 	var rec map[string]interface{}
 	json.Unmarshal([]byte(record), &rec)
-	rpc.Add(c.GetPathVar("store"), rec)
-	c.SetFlash("alertSuccess", "Successfully added record")
-
-	http.Redirect(w, r, fmt.Sprintf("/%s", c.GetPathVar("store")), 303)
+	rpc.Add(store, rec)
+	web.SetSuccessRedirect(w, r, "/"+store, "Successfully added record")
 	return
-}
+}}
 
 // POST upload .json file of records to add to store
-func UploadRecords(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var importStore = web.Route{"POST", "/:store/import", func(w http.ResponseWriter, r *http.Request) {
 	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	db := web.Get(r, "db")
+	if db == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
+	store := r.FormValue(":store")
 	r.ParseMultipartForm(32 << 20) // 32 MB
 	file, handler, err := r.FormFile("data")
 	if err != nil || len(handler.Header["Content-Type"]) < 1 {
 		fmt.Println(err)
-		c.SetFlash("alertError", "Error uploading file")
-		http.Redirect(w, r, "/"+c.GetPathVar("store")+"/import", 303)
+		web.SetErrorRedirect(w, r, "/"+store, "Error uploading file")
 		return
 	}
 	defer file.Close()
@@ -628,94 +424,88 @@ func UploadRecords(w http.ResponseWriter, r *http.Request, c *webc.Context) {
 	case "text/csv":
 		m, err = DecodeCSV(file)
 	default:
-		c.SetFlash("alertError", "Error uploading file")
-		http.Redirect(w, r, "/"+c.GetPathVar("store")+"/import", 303)
+		web.SetErrorRedirect(w, r, "/"+store, "Error uploading file")
 		return
 	}
 
 	if err != nil {
 		fmt.Println(err)
-		c.SetFlash("alertError", "Error uploading file")
-		http.Redirect(w, r, "/"+c.GetPathVar("store")+"/import", 303)
+		web.SetErrorRedirect(w, r, "/"+store, "Error uploading file")
 		return
 	}
-
 	for _, doc := range m {
 		SanitizeMap(&doc)
-		rpc.Add(c.GetPathVar("store"), doc)
+		rpc.Add(store, doc)
 	}
-	c.SetFlash("alertSuccess", "Successfully imported data")
-	http.Redirect(w, r, "/"+c.GetPathVar("store"), 303)
+	web.SetSuccessRedirect(w, r, "/"+store, "Successfully imported data")
 	return
-}
+}}
 
 // GET render specified record from specified store in connected DB
-func Record(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var getRecord = web.Route{"GET", "/:store/:record", func(w http.ResponseWriter, r *http.Request) {
 	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	db := web.Get(r, "db")
+	if db == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
-	msgk, msgv := c.GetFlash()
-	record := rpc.Get(c.GetPathVar("store"), GetId(c.GetPathVar("record")))
+	store := r.FormValue(":store")
+	record := rpc.Get(store, GetId(r.FormValue(":record")))
 	if record == nil {
-		c.SetFlash("alertError", "Invalid Record")
-		http.Redirect(w, r, fmt.Sprintf("/%s/%s", c.GetPathVar("db"), c.GetPathVar("store")), 303)
+		web.SetErrorRedirect(w, r, "/"+store, "Invalid Record")
 		return
 	}
-	ts.Render(w, "record.tmpl", tmpl.Model{
-		msgk:        msgv,
-		"db":        c.Get("db"),
+	ts.Render(w, r, "record.tmpl", tmpl.Model{
+		"db":        db,
 		"stores":    rpc.GetAllStoreStats(),
-		"storeName": c.GetPathVar("store"),
+		"storeName": store,
 		"record":    record,
 	})
 	return
-}
+}}
 
 // POST save record to specified store in connected DB
-func SaveRecord(w http.ResponseWriter, r *http.Request, c *webc.Context) {
+var saveRecord = web.Route{"POST", "/:store/:record", func(w http.ResponseWriter, r *http.Request) {
 	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	db := web.Get(r, "db")
+	if db == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
+	store := r.FormValue(":store")
 	record := r.FormValue("record")
 	var rec map[string]interface{}
 	json.Unmarshal([]byte(record), &rec)
-	if ok := rpc.Set(c.GetPathVar("store"), GetId(c.GetPathVar("record")), rec); ok {
-		c.SetFlash("alertSuccess", "Successfully saved Record")
-	} else {
-		c.SetFlash("alertError", "Error saving record")
-	}
-	http.Redirect(w, r, fmt.Sprintf("/%s", c.GetPathVar("store")), 303)
-	return
-}
-
-// POST delete record from specified store in connected DB
-func DelRecord(w http.ResponseWriter, r *http.Request, c *webc.Context) {
-	if !rpc.Alive() {
-		http.Redirect(w, r, "/", 303)
-		c.SetFlash("alertError", "Error no connection to a database")
+	if ok := rpc.Set(store, GetId(record), rec); ok {
+		web.SetSuccessRedirect(w, r, "/"+store, "Successfully saved record")
 		return
 	}
-	if c.Get("db") == nil || c.Get("db").(string) == "" {
+	web.SetErrorRedirect(w, r, "/"+store, "Error saving record")
+	return
+}}
+
+// POST delete record from specified store in connected DB
+var delRecord = web.Route{"POST", "/:store/:record/del", func(w http.ResponseWriter, r *http.Request) {
+	if !rpc.Alive() {
+		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
+		return
+	}
+	db := web.Get(r, "db")
+	if db == "" {
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
-	rpc.Del(c.GetPathVar("store"), GetId(c.GetPathVar("record")))
-	c.SetFlash("alertSuccess", "Successfully deleted record")
-	http.Redirect(w, r, fmt.Sprintf("/%s", c.GetPathVar("store")), 303)
+	store := r.FormValue(":store")
+	rpc.Del(store, GetId(r.FormValue("record")))
+	web.SetSuccessRedirect(w, r, "/"+store, "Successfully deleted record")
 	return
-}
+}}
 
 // helper functions
 

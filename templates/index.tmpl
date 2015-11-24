@@ -1,0 +1,136 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		{{ template "head.tmpl" . }}
+		<title>DBUI</title>
+	</head>
+	<body>
+
+		<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+			<div class="container-fluid">
+				<div class="navbar-header">
+					<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-navbar-collapse-1">
+						<span class="sr-only">Toggle navigation</span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+					</button>
+				</div>
+
+				{{ if .alert }}
+					<span id="msg" class="navbar-center text-info">
+						{{ .alert }}
+						<button style="z-index: 100" class="btn-xs btn-info" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+					</span>
+				{{ else if .alertError }}
+					<span id="msg" class="navbar-center text-danger">
+						{{ .alertError }}
+						<button style="z-index: 100" class="btn-xs btn-danger" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+					</span>
+				{{ else if .alertSuccess }}
+					<span id="msg" class="navbar-center text-success">
+						{{ .alertSuccess }}
+						<button style="z-index: 100" class="btn-xs btn-success" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+					</span>
+				{{ end }}
+
+				<span id="JSmsg" class="navbar-center text-primary hide">
+					<p id="msgContent"></p>
+				</span>
+
+				<ul class="nav navbar-nav navbar-left">
+					<li class="hidden-xs">
+						<ol class="breadcrumb">
+						</ol>
+					</li>
+				</ul>
+
+				<span id="delete-msg" class="navbar-center text-danger hide clearfix">
+					<form id="deleteForm" class="form-inline" method="post">
+						<label id="message">This is the message area&nbsp;&nbsp;&nbsp;</label>
+						<button id="delete" class="btn btn-danger btn-xs">Yes</button>
+						<a id="deleteCancel" class="btn btn-default btn-xs">No</a>
+					</form>
+				</span>
+
+				<div class="collapse navbar-collapse" id="bs-navbar-collapse-1">
+					<ul class="nav navbar-nav navbar-right">
+					</ul>
+				</div>
+			</div>
+		</nav>
+
+		<div class="container-fluid">
+	        <div class="row">
+				<div id="content">
+	            	<div class="col-lg-2 sidebar">
+	                	<ul class="nav nav-sidebar">
+	                    	{{ template "all-db-sidebar.tmpl" . }}
+	                	</ul>
+	            	</div>
+
+                    <div class="col-lg-offset-2 col-lg-7">
+                        <br>
+                        <legend>Manage Connections</legend>
+                        {{ $conns := .conns }}
+                        {{ range $db := .dbs }}
+                            <form class="form-inline form-group" action="/connection/save" method="post">
+                                <div class="form-group">
+                                    <input class="form-control" type="text" name="name" value="{{ $db }}">
+                                </div>
+                                <div class="form-group">
+                                    <input class="form-control" type="text" name="address" value="{{ index $conns $db "address" }}">
+                                </div>
+                                <div class="form-group">
+                                    <input class="form-control" type="text" name="token" value="{{ index $conns $db "token" }}">
+                                </div>
+                                <input type="hidden" name="oldName" value="{{ $db }}">
+                                <button class="btn btn-success">Update</button>
+                                <a href="#" data-message="Are you sure you would like to delete this connection?" data-delete="/connection/{{ $db }}/del" class="delete-button btn btn-danger">Delete</a>
+                            </form>
+                        {{ end }}
+                    </div>
+
+                    <div class="col-lg-offset-9 col-lg-3 sidebar text-center">
+                        Add Connection
+                        <form class="text-left" action="/connection" method="post">
+                            <div class="form-group">
+                                <label>Name</label>
+                                <input class="form-control" type="text" name="name" placeholder="Name">
+                            </div>
+                            <div class="form-group">
+                                <label>Address</label>
+                                <input class="form-control" type="text" name="address" placeholder="Address">
+                            </div>
+                            <div class="form-group">
+                                <label>Token</label>
+                                <input class="form-control" type="text" name="token" placeholder="Token">
+                            </div>
+                            <button class="btn btn-primary btn-block">Add</button>
+                        </form>
+                    </div>
+
+				</div>
+				<div id="uploadSpinner" class="text-center hide">
+					<br><br><br><br><br>
+					<p class="lead">
+						<strong>Uploading your file...</strong><br/>
+					</p>
+					<i class="fa fa-5x fa-circle-o-notch fa-spin"></i>
+					<p class="lead">One moment please.</p>
+				</div>
+			</div>
+		</div>
+		<div>
+			{{ template "scripts.tmpl" . }}
+            <!-- <script>
+                var order = {{ .dbs | pretty }}
+                {{ if .conns }}
+                    var conns = JSON.parse({{ .conns | pretty }})
+                {{ end }}
+            </script> -->
+		</div>
+
+	</body>
+</html>

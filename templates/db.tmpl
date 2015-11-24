@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		{{ template "head.tmpl" . }}
+		<title>DBUI</title>
+        <style>input.uploader{position:absolute;left:-9999px;}label.uploader{cursor:pointer;}</style>
+        <style>
+            .panel-body {
+                padding: 0;
+            }
+        </style>
+	</head>
+	<body>
+
+		<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+		    <div class="container-fluid">
+		        <div class="navbar-header">
+		            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-navbar-collapse-1">
+		                <span class="sr-only">Toggle navigation</span>
+		                <span class="icon-bar"></span>
+		                <span class="icon-bar"></span>
+		                <span class="icon-bar"></span>
+		            </button>
+		        </div>
+
+		        {{ if .alert }}
+		            <span id="msg" class="navbar-center text-info">
+		                {{ .alert }}
+		                <button style="z-index: 100" class="btn-xs btn-info" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+		            </span>
+		        {{ else if .alertError }}
+		            <span id="msg" class="navbar-center text-danger">
+		                {{ .alertError }}
+		                <button style="z-index: 100" class="btn-xs btn-danger" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+		            </span>
+		        {{ else if .alertSuccess }}
+		            <span id="msg" class="navbar-center text-success">
+		                {{ .alertSuccess }}
+		                <button style="z-index: 100" class="btn-xs btn-success" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+		            </span>
+		        {{ end }}
+
+		        <span id="JSmsg" class="navbar-center text-primary hide">
+		            <p id="msgContent"></p>
+		        </span>
+
+		        <ul class="nav navbar-nav navbar-left">
+		            <li class="hidden-xs">
+		                <ol class="breadcrumb">
+		                    <li class="active">{{ .db | title }}</li>
+		                </ol>
+		            </li>
+		        </ul>
+
+		        <span id="delete-msg" class="navbar-center text-danger hide clearfix">
+		            <form id="deleteForm" class="form-inline" method="post">
+		                <label id="message">This is the message area&nbsp;&nbsp;&nbsp;</label>
+		                <button id="delete" class="btn btn-danger btn-xs">Yes</button>
+		                <a id="deleteCancel" class="btn btn-default btn-xs">No</a>
+		            </form>
+		        </span>
+
+		        <div class="collapse navbar-collapse" id="bs-navbar-collapse-1">
+		            <ul class="nav navbar-nav navbar-right">
+	                    <li class="dropdown">
+	                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Actions<span class="caret"></span></a>
+	                        <ul class="dropdown-menu">
+								<li><a href="#" data-toggle="modal" data-target="#importModal">Import Database</a></li>
+							    <li><a id="export" href="#">Export Database</a></li>
+							    <li><a href="#" data-message="Are you sure you would like to erase the entire database?" data-delete="/erase" class="delete-button text-danger">Erase Database</a></li>
+	                            <li role="separator" class="divider"></li>
+	                            <li><a href=/disconnect>Disconnect</a></li>
+	                        </ul>
+	                    </li>
+		            </ul>
+		        </div>
+		    </div>
+		</nav>
+
+
+		<div class="container-fluid">
+	        <div class="row">
+				<div id="content">
+	            	<div class="col-lg-2 sidebar">
+	                	<ul class="nav nav-sidebar">
+	                    	{{ template "all-store-sidebar.tmpl" . }}
+	                	</ul>
+	            	</div>
+
+                    <br><br>
+                    <div class="col-lg-offset-2 col-lg-10">
+                        <div class="col-lg-8">
+                            <div class="panel panel-default">
+                                <div class="panel-heading clearfix">
+                                    Records
+                                    <span id="totalRecords" class="pull-right"></span>
+                                </div>
+                                <div class="panel-body">
+                                    <canvas id="recordsChart" height="250"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-4">
+                            <div class="panel panel-default">
+                                <div class="panel-heading clearfix">
+                                    Disk Usage
+                                    <span id="totalDisk" class="pull-right"></span>
+                                </div>
+                                <div class="panel-body">
+                                    <canvas id="diskChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="panel panel-default">
+                                <div class="panel-heading clearfix">
+                                    Deletes
+                                    <span id="totalDel" class="pull-right"></span>
+                                </div>
+                                <div class="panel-body">
+                                    <canvas id="deleteChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="panel panel-default">
+                                <div class="panel-heading clearfix">
+                                    Adds
+                                    <span id="totalAdds" class="pull-right"></span>
+                                </div>
+                                <div class="panel-body">
+                                    <canvas id="addChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+
+                        </div>
+
+                        <div class="col-lg-6">
+
+                        </div>
+
+                        <!--
+                        <div class="col-lg-6">
+                            <div class="panel panel-default">
+                                <div class="panel-heading clearfix">
+                                    Reads
+                                    <span id="totalRead" class="pull-right"></span>
+                                </div>
+                                <div class="panel-body">
+                                    <canvas id="readChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="panel panel-default">
+                                <div class="panel-heading clearfix">
+                                    Updates
+                                    <span id="totalUpdate" class="pull-right"></span>
+                                </div>
+                                <div class="panel-body">
+                                    <canvas id="updateChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                         -->
+                    </div>
+
+                    <div class="modal fade" id="importModal" tabindex="-1">
+                        <div class="modal-dialog modal-sm">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                    <h4 class="modal-title" id="myModalLabel">Upload File</h4>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-lg-12 text-center">
+                                            <div id="fileError" class="text-danger hide">
+                    					        <p id="fileMessage" class="text-danger"></p>
+                    				        </div>
+                                        </div>
+                                    </div>
+                                    <form id="uploader" action="/import" method="post" enctype="multipart/form-data">
+                            			<div class="form-group">
+                            				<label class="btn btn-default btn-block uploader" for="data">
+                            					Select File
+                            				</label>
+                            				<input class="uploader" id="data" type="file" name="import" required="true">
+                            			</div>
+                            			<button class="btn btn-success uploader btn-block" id="upload" type="submit" disabled="true">
+                            				Upload
+                            			</button>
+                            		</form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+				</div>
+				<div id="uploadSpinner" class="text-center hide">
+					<br><br><br><br><br>
+					<p class="lead">
+						<strong>Uploading your file...</strong><br/>
+					</p>
+					<i class="fa fa-5x fa-circle-o-notch fa-spin"></i>
+					<p class="lead">One moment please.</p>
+				</div>
+			</div>
+		</div>
+		<div>
+			{{ template "scripts.tmpl" . }}
+            <script src="/static/js/util.js"></script>
+            <script type="text/javascript">
+                var stores = {{ if .stores }}JSON.parse({{ .stores | pretty }}){{ else }}[]{{ end }};
+                var dbName = '{{ .db }}'
+                var path = 'static/export/' + genFileName(dbName) + '.tar';
+            </script>
+            <script src="/static/js/chart.js"></script>
+            <script src="/static/js/dbCharts.js"></script>
+            <script src="/static/js/upload.js"></script>
+            <script type="text/javascript">
+                $(document).ready(function() {
+                    $('#export').click(function() {
+                        $.ajax({
+                            url: "/export",
+                            success: function(data) {
+                                console.log(data)
+                                resp = JSON.parse(data);
+                                if (resp.complete) {
+                                    window.location.href = resp.path;
+                                } else {
+                                    $('p#msgContent').text('Error creating download file');
+                                    $('.navbar-center').addClass('hide');
+                                    $('span#JSmsg').removeClass('text-primary');
+                                    $('span#JSmsg').addClass('text-danger');
+                                    $('span#JSmsg').removeClass('hide');
+                                }
+                            }
+                        });
+                    });
+
+                    uploader.defaultText = "Select File";
+                    uploader.fileTypes = ["application/x-tar"];
+                    uploader.fileTypeErrorMsg = "Incorrect file type. All files must be TAR";
+                    uploader.maxSize = (1024 * 1024 * 4);
+                    uploader.maxSizeMsg = "File too large. Max file size is 4MB";
+                });
+            </script>
+		</div>
+
+	</body>
+</html>

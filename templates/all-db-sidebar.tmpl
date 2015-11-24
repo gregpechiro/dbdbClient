@@ -1,0 +1,6 @@
+<p class="text-center">
+    Click to connect
+</p>
+{{ range $db := .dbs }}
+    <li><a href="/connect/{{ $db }}">{{ title $db }}</a></li>
+{{ end }}

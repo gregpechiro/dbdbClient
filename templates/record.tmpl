@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		{{ template "head.tmpl" . }}
+		<title>DBUI</title>
+	</head>
+	<body>
+
+		<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+			<div class="container-fluid">
+				<div class="navbar-header">
+					<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-navbar-collapse-1">
+						<span class="sr-only">Toggle navigation</span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+					</button>
+				</div>
+
+				{{ if .alert }}
+					<span id="msg" class="navbar-center text-info">
+						{{ .alert }}
+						<button style="z-index: 100" class="btn-xs btn-info" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+					</span>
+				{{ else if .alertError }}
+					<span id="msg" class="navbar-center text-danger">
+						{{ .alertError }}
+						<button style="z-index: 100" class="btn-xs btn-danger" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+					</span>
+				{{ else if .alertSuccess }}
+					<span id="msg" class="navbar-center text-success">
+						{{ .alertSuccess }}
+						<button style="z-index: 100" class="btn-xs btn-success" onclick="document.getElementById('msg').parentNode.removeChild(document.getElementById('msg'))" name="button">&times;</button>
+					</span>
+				{{ end }}
+
+				<span id="JSmsg" class="navbar-center text-primary hide">
+					<p id="msgContent"></p>
+				</span>
+
+				<ul class="nav navbar-nav navbar-left">
+					<li class="hidden-xs">
+						<ol class="breadcrumb">
+                            <li><a href="/">{{ .db | title }}</a></li>
+                            <li><a href="/{{ .storeName }}">{{ .storeName }}</a></li>
+                            <li class="active">{{ if .record }}{{ .record.Id }}{{ else }}New{{ end }}</li>
+						</ol>
+					</li>
+				</ul>
+
+				<span id="delete-msg" class="navbar-center text-danger hide clearfix">
+					<form id="deleteForm" class="form-inline" method="post">
+						<label id="message">This is the message area&nbsp;&nbsp;&nbsp;</label>
+						<button id="delete" class="btn btn-danger btn-xs">Yes</button>
+						<a id="deleteCancel" class="btn btn-default btn-xs">No</a>
+					</form>
+				</span>
+
+				<div class="collapse navbar-collapse" id="bs-navbar-collapse-1">
+					<ul class="nav navbar-nav navbar-right">
+						<li class="dropdown">
+				        	<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Actions<span class="caret"></span></a>
+				        	<ul class="dropdown-menu">
+                                <li><a href="#" id="save">Save Record</a></li>
+                                {{ if .record }}
+                                    <li><a href="#" data-message="Are you sure you would like to delete this record?" data-delete="/{{ .storeName }}/{{ .record.Id }}/del" class="delete-button text-danger">Delete Record</a></li>
+                                {{ end }}
+                                <li><a href="/{{ .storeName }}" id="save">Cancel</a></li>
+				            	<li role="separator" class="divider"></li>
+				            	<li><a href=/disconnect>Disconnect</a></li>
+				        	</ul>
+				    	</li>
+					</ul>
+				</div>
+			</div>
+		</nav>
+		<div class="container-fluid">
+	        <div class="row">
+				<div id="content">
+	            	<div class="col-lg-2 sidebar">
+	                	<ul class="nav nav-sidebar">
+	                    	{{ template "all-store-sidebar.tmpl" . }}
+	                	</ul>
+	            	</div>
+                    <div class="col-lg-offset-2 col-lg-10">
+                        <br>
+                        <pre id="editor" style="height:525px;">{{ if .record }}{{ .record.Data | pretty }}{{ else }}{
+""
+}{{ end }}</pre>
+                        <form id="save-form" action="/{{ .storeName }}/{{ if .record }}{{ .record.Id }}{{ else }}add{{ end }}" method="post">
+                            <input id="record" type="hidden" name="record">
+                        </form>
+                    </div>
+				</div>
+				<div id="uploadSpinner" class="text-center hide">
+					<br><br><br><br><br>
+					<p class="lead">
+						<strong>Uploading your file...</strong><br/>
+					</p>
+					<i class="fa fa-5x fa-circle-o-notch fa-spin"></i>
+					<p class="lead">One moment please.</p>
+				</div>
+			</div>
+		</div>
+		<div>
+			{{ template "scripts.tmpl" . }}
+            <script src="/static/js/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
+            <script type="text/javascript">
+                var valid
+                var editor = ace.edit("editor");
+                editor.session.setMode("ace/mode/json");
+                editor.renderer.setShowGutter(true);
+                editor.setHighlightActiveLine(true);
+                editor.setReadOnly(false);
+                editor.setTheme("ace/theme/vibrant_ink");
+                editor.setDisplayIndentGuides(true);
+                editor.moveCursorTo(1,5)
+                $('textarea.ace_text-input').focus()
+                editor.getSession().on("changeAnnotation", function(){
+                    var annot = editor.getSession().getAnnotations();
+                    if (annot.length > 0) {
+                        valid = false;
+                    } else {
+                        valid = true;
+                    }
+                });
+                $(document).ready(function() {
+                    $('#save').click(function(e) {
+                        doc = editor.getValue();
+                        if (doc !== '' && valid && !$.isEmptyObject(JSON.parse(doc))) {
+                            e.preventDefault();
+                            $('input#record').val(editor.getValue());
+                            $('form#save-form').submit();
+                        }
+                    });
+                });
+            </script>
+		</div>
+	</body>
+</html>
