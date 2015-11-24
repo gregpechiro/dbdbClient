@@ -22,6 +22,17 @@ import (
 	"github.com/cagnosolutions/webc/tmpl"
 )
 
+func init() {
+	web.Funcs["json"] = func(v interface{}) string {
+		b, err := json.Marshal(v)
+		if err != nil {
+			log.Println(err)
+		}
+		return string(b)
+	}
+
+}
+
 var rpc = dbdb.NewClient()
 var ts = web.NewTmplCache()
 var config = mockdb.NewMockDB("config.json", 5)

@@ -141,7 +141,8 @@
 {{ define "scripts" }}
     <script src="/static/js/util.js"></script>
     <script type="text/javascript">
-        var stores = {{ if .stores }}JSON.parse({{ .stores | pretty }}){{ else }}[]{{ end }};
+        {{ .stores }}
+        var stores = {{ if .stores }}JSON.parse({{ .stores | json }}){{ else }}[]{{ end }};
         var dbName = {{ .db }}
         var path = 'static/export/' + genFileName(dbName) + '.tar';
     </script>

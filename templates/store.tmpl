@@ -200,8 +200,8 @@
 		<div>
 			{{ template "scripts.tmpl" . }}
             <script type="text/javascript">
-                var store = {{ if .store }}JSON.parse({{ .store | pretty }}){{ else }}[]{{ end }}
-                var result = {{ if .store }}JSON.parse({{ .store | pretty }}){{ else }}[]{{ end }}
+                var store = {{ if .store }}{{ .store | json }}{{ else }}[]{{ end }}
+                var result = {{ if .store }}{{ .store | json }}{{ else }}[]{{ end }}
                 var storeName = '{{ .storeName }}';
                 var editor = ace.edit("editor");
             </script>
