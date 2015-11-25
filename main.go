@@ -22,7 +22,13 @@ import (
 	"github.com/cagnosolutions/webc/tmpl"
 )
 
+var rpc = dbdb.NewClient()
+
+var ts *web.TmplCache
+var config = mockdb.NewMockDB("config.json", 5)
+
 func init() {
+	web.Funcs["title"] = strings.Title
 	web.Funcs["json"] = func(v interface{}) string {
 		b, err := json.Marshal(v)
 		if err != nil {
@@ -30,12 +36,15 @@ func init() {
 		}
 		return string(b)
 	}
-
+	web.Funcs["pretty"] = func(v interface{}) string {
+		b, err := json.MarshalIndent(v, "", "\t")
+		if err != nil {
+			log.Println(err)
+		}
+		return string(b)
+	}
+	ts = web.NewTmplCache()
 }
-
-var rpc = dbdb.NewClient()
-var ts = web.NewTmplCache()
-var config = mockdb.NewMockDB("config.json", 5)
 
 func main() {
 	mux := web.NewMux()
