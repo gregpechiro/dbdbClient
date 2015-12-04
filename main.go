@@ -49,9 +49,9 @@ func init() {
 func main() {
 	mux := web.NewMux()
 	mux.AddRoutes(root, addConnection, saveConnection, delConnection, connect, disconnect)
-	mux.AddRoutes(exportDB, importDB, eraseDB, saveStore, getStore, delStore, saveQuery)
+	mux.AddRoutes(saveStore, exportDB, importDB, eraseDB, getStore, delStore, saveQuery)
 	mux.AddRoutes(newRecord, addRecord, importStore, getRecord, saveRecord, delRecord)
-	log.Println(http.ListenAndServe(":8080", mux))
+	log.Println(http.ListenAndServe(":8888", mux))
 }
 
 var root = web.Route{"GET", "/", func(w http.ResponseWriter, r *http.Request) {
@@ -139,6 +139,7 @@ var connect = web.Route{"GET", "/connect/:db", func(w http.ResponseWriter, r *ht
 // GET disconnect from DB
 var disconnect = web.Route{"GET", "/disconnect", func(w http.ResponseWriter, r *http.Request) {
 	rpc.Disconnect()
+	web.Delete(w, r, "db")
 	web.SetSuccessRedirect(w, r, "/", "Disconnected")
 	return
 }}
@@ -285,7 +286,7 @@ var eraseDB = web.Route{"POST", "/erase", func(w http.ResponseWriter, r *http.Re
 }}
 
 // POST add store to connected DB
-var saveStore = web.Route{"GET", "/new", func(w http.ResponseWriter, r *http.Request) {
+var saveStore = web.Route{"POST", "/new", func(w http.ResponseWriter, r *http.Request) {
 	if !rpc.Alive() {
 		web.SetErrorRedirect(w, r, "/", "Error no connection to a database")
 		return
@@ -340,11 +341,13 @@ var delStore = web.Route{"POST", "/:store", func(w http.ResponseWriter, r *http.
 		http.Redirect(w, r, "/disconnect", 303)
 		return
 	}
-	if !rpc.DelStore(r.FormValue("store")) {
+	store := r.FormValue("store")
+	println(store)
+	if !rpc.DelStore(store) {
 		web.SetErrorRedirect(w, r, "/", "Error deleting store")
 		return
 	}
-	web.SetSuccessRedirect(w, r, "/", "Successfully deleted store")
+	web.SetSuccessRedirect(w, r, "/", "Successfully deleted store "+store)
 	return
 }}
 
